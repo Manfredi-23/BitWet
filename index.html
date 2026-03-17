@@ -6,308 +6,179 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Crag Meteo</title>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=DM+Mono:wght@300;400;500&display=swap');
 
 :root {
-–bg: #2c2a26;
-–bg-warm: #33302b;
-–card: #f0ece4;
-–card-hover: #e8e3d9;
-–card-border: #d9d3c7;
-–card-shadow: rgba(28, 26, 22, 0.35);
-–ink: #2c2a26;
-–ink-soft: #5c5750;
-–ink-faint: #9b9488;
-–ink-ghost: #c4bdb2;
-–ink-on-dark: #d4cfc6;
-–ink-on-dark-soft: #9b9488;
-–ink-on-dark-faint: #6b655c;
-–moss: #6b8f5e;
-–moss-soft: #6b8f5e33;
-–stone-blue: #6b8293;
-–clay: #b8764e;
-–clay-soft: #b8764e28;
-–dried-rose: #a67272;
-–dried-rose-soft: #a6727228;
-–lichen: #8a9a6b;
-–score-great: #6b8f5e;
-–score-good: #8a9a6b;
-–score-ok: #b89f5e;
-–score-poor: #b8764e;
-–score-bad: #a67272;
-–radius: 8px;
-–radius-sm: 4px;
-–transition: 0.2s ease;
+–bg:#2c2a26;–bg-warm:#33302b;–card:#f0ece4;–card-hover:#e8e3d9;–card-border:#d9d3c7;
+–card-shadow:rgba(28,26,22,0.35);–ink:#2c2a26;–ink-soft:#5c5750;–ink-faint:#9b9488;
+–ink-ghost:#c4bdb2;–ink-on-dark:#d4cfc6;–ink-on-dark-soft:#9b9488;–ink-on-dark-faint:#6b655c;
+–moss:#6b8f5e;–moss-soft:#6b8f5e33;–stone-blue:#6b8293;–clay:#b8764e;–clay-soft:#b8764e28;
+–dried-rose:#a67272;–dried-rose-soft:#a6727228;–lichen:#8a9a6b;
+–score-great:#6b8f5e;–score-good:#8a9a6b;–score-ok:#b89f5e;–score-poor:#b8764e;–score-bad:#a67272;
+–radius:8px;–radius-sm:4px;–transition:0.2s ease;
 }
+*{margin:0;padding:0;box-sizing:border-box}
+html{font-size:16px;-webkit-font-smoothing:antialiased}
+body{background:var(–bg);color:var(–ink-on-dark);font-family:‘Source Sans 3’,‘Segoe UI’,system-ui,sans-serif;font-weight:400;line-height:1.5;min-height:100vh}
 
-- { margin: 0; padding: 0; box-sizing: border-box; }
-html { font-size: 16px; -webkit-font-smoothing: antialiased; }
+/* HEADER */
+header{padding:28px 24px 20px;max-width:800px;margin:0 auto}
+.brand{display:flex;align-items:baseline;gap:12px}
+.brand h1{font-size:1.5rem;font-weight:300;letter-spacing:0.04em;color:var(–ink-on-dark)}
+.brand-dot{width:6px;height:6px;border-radius:50%;background:var(–moss);flex-shrink:0;position:relative;top:-1px}
+.header-meta{display:flex;align-items:center;justify-content:space-between;margin-top:8px}
+.status{font-family:‘DM Mono’,monospace;font-size:0.7rem;font-weight:300;color:var(–ink-on-dark-faint);letter-spacing:0.05em;display:flex;align-items:center;gap:8px}
+.status-dot{width:5px;height:5px;border-radius:50%;background:var(–moss);transition:background var(–transition)}
+.status-dot.loading{background:var(–clay);animation:breathe 1.5s ease-in-out infinite}
+.status-dot.error{background:var(–dried-rose)}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.35}}
+.header-actions{display:flex;gap:8px}
+.btn-ghost{background:none;border:none;color:var(–ink-on-dark-faint);font-family:‘Source Sans 3’,sans-serif;font-size:.8rem;font-weight:400;cursor:pointer;padding:6px 12px;border-radius:var(–radius-sm);transition:all var(–transition)}
+.btn-ghost:hover{color:var(–ink-on-dark);background:rgba(255,255,255,.06)}
 
-body {
-background: var(–bg);
-color: var(–ink-on-dark);
-font-family: ‘Source Sans 3’, ‘Segoe UI’, system-ui, sans-serif;
-font-weight: 400;
-line-height: 1.5;
-min-height: 100vh;
-}
+.sep{max-width:800px;margin:0 auto;padding:0 24px}
+.sep::after{content:’’;display:block;height:1px;background:linear-gradient(90deg,transparent,var(–ink-on-dark-faint),transparent);opacity:.2}
 
-header {
-padding: 28px 24px 20px;
-max-width: 800px;
-margin: 0 auto;
-}
+/* TABS */
+.tab-bar{max-width:800px;margin:0 auto;padding:16px 24px 0;display:flex;gap:0}
+.tab-btn{background:none;border:none;color:var(–ink-on-dark-faint);font-family:‘Source Sans 3’,sans-serif;font-size:.85rem;font-weight:400;cursor:pointer;padding:8px 18px 10px;border-bottom:2px solid transparent;transition:all var(–transition);letter-spacing:.02em}
+.tab-btn:hover{color:var(–ink-on-dark-soft)}
+.tab-btn.active{color:var(–ink-on-dark);border-bottom-color:var(–ink-on-dark);font-weight:500}
+.tab-pane{display:none}
+.tab-pane.active{display:block}
 
-.brand { display: flex; align-items: baseline; gap: 12px; }
-.brand h1 { font-size: 1.5rem; font-weight: 300; letter-spacing: 0.04em; color: var(–ink-on-dark); }
-.brand-dot { width: 6px; height: 6px; border-radius: 50%; background: var(–moss); flex-shrink: 0; position: relative; top: -1px; }
+main{max-width:800px;margin:0 auto;padding:12px 24px 60px}
 
-.header-meta { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
+/* SORT */
+.sort-bar{display:flex;align-items:center;gap:4px;margin-bottom:24px}
+.sort-label{font-size:.7rem;color:var(–ink-on-dark-faint);margin-right:8px;font-weight:300;letter-spacing:.05em}
+.sort-btn{background:none;border:none;color:var(–ink-on-dark-faint);font-family:‘Source Sans 3’,sans-serif;font-size:.75rem;font-weight:400;cursor:pointer;padding:4px 10px;border-radius:20px;transition:all var(–transition)}
+.sort-btn:hover{color:var(–ink-on-dark-soft)}
+.sort-btn.active{background:rgba(255,255,255,.08);color:var(–ink-on-dark)}
 
-.status {
-font-family: ‘DM Mono’, monospace;
-font-size: 0.7rem; font-weight: 300;
-color: var(–ink-on-dark-faint);
-letter-spacing: 0.05em;
-display: flex; align-items: center; gap: 8px;
-}
+/* CARD */
+.crag-card{background:var(–card);border-radius:var(–radius);margin-bottom:20px;box-shadow:0 2px 16px var(–card-shadow),0 1px 3px var(–card-shadow);overflow:hidden;animation:rise .5s ease-out both;transition:box-shadow .3s}
+.crag-card:hover{box-shadow:0 4px 24px var(–card-shadow),0 1px 3px var(–card-shadow)}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 
-.status-dot { width: 5px; height: 5px; border-radius: 50%; background: var(–moss); transition: background var(–transition); }
-.status-dot.loading { background: var(–clay); animation: breathe 1.5s ease-in-out infinite; }
-.status-dot.error { background: var(–dried-rose); }
+.card-top{padding:20px 24px 16px}
+.card-top-row{display:flex;align-items:flex-start;justify-content:space-between}
+.crag-name{font-size:1.25rem;font-weight:600;color:var(–ink);line-height:1.2}
+.card-actions{display:flex;gap:2px;margin:-4px -8px 0 0}
+.card-action-btn{background:none;border:none;color:var(–ink-ghost);cursor:pointer;font-size:.85rem;padding:6px 8px;border-radius:var(–radius-sm);transition:all var(–transition)}
+.card-action-btn:hover{color:var(–ink-soft);background:rgba(0,0,0,.04)}
+.crag-detail-row{display:flex;align-items:center;gap:16px;margin-top:6px;flex-wrap:wrap}
+.crag-detail{font-size:.8rem;color:var(–ink-faint)}
+.orientation-row{display:flex;gap:4px;margin-top:10px}
+.orient-chip{font-family:‘DM Mono’,monospace;font-size:.6rem;padding:2px 7px;border-radius:3px;background:var(–card-hover);color:var(–ink-faint);letter-spacing:.04em}
+.orient-chip.sun{background:var(–clay-soft);color:var(–clay)}
 
-@keyframes breathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+/* FORECAST */
+.forecast-area{border-top:1px solid var(–card-border)}
+.forecast-scroll{display:flex;overflow-x:auto;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.forecast-scroll::-webkit-scrollbar{display:none}
+.day-cell{flex:1 0 0;min-width:96px;padding:16px 8px 14px;text-align:center;cursor:pointer;position:relative;scroll-snap-align:start;transition:background var(–transition);border-right:1px solid var(–card-border)}
+.day-cell:last-child{border-right:none}
+.day-cell:hover{background:var(–card-hover)}
+.day-cell.today .day-name{color:var(–moss);font-weight:600}
+.day-cell.today::after{content:’’;position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:24px;height:2px;background:var(–moss);border-radius:1px}
+.day-cell.expanded-cell{background:var(–card-hover)}
+.day-name{font-size:.7rem;font-weight:500;color:var(–ink-soft);letter-spacing:.06em;text-transform:uppercase}
+.day-date{font-size:1.15rem;font-weight:300;color:var(–ink);margin:1px 0 8px;line-height:1}
+.day-icon{font-size:1.4rem;line-height:1;margin-bottom:8px}
+.score-bar-wrap{width:100%;height:3px;background:var(–card-border);border-radius:2px;overflow:hidden;margin-bottom:6px}
+.score-bar-fill{height:100%;border-radius:2px;transition:width .8s ease-out,background .3s}
+.score-num{font-family:‘DM Mono’,monospace;font-size:.85rem;font-weight:500;line-height:1}
+.score-word{font-size:.6rem;font-weight:400;color:var(–ink-faint);letter-spacing:.06em;margin-top:2px}
+/* Confidence tag */
+.confidence-tag{display:inline-block;font-family:‘DM Mono’,monospace;font-size:.55rem;padding:1px 5px;border-radius:2px;margin-top:3px;letter-spacing:.03em}
+.confidence-tag.high{background:var(–moss-soft);color:var(–moss)}
+.confidence-tag.medium{background:var(–clay-soft);color:var(–clay)}
+.confidence-tag.low{background:var(–dried-rose-soft);color:var(–dried-rose)}
 
-.header-actions { display: flex; gap: 8px; }
+/* EXPAND */
+.day-expand{border-top:1px solid var(–card-border);padding:16px 24px;background:var(–card-hover);animation:slideDown .25s ease-out}
+@keyframes slideDown{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+.expand-header{font-size:.75rem;color:var(–ink-faint);margin-bottom:10px}
+.expand-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 24px}
+.expand-item{display:flex;flex-direction:column;gap:2px}
+.expand-label{font-size:.65rem;font-weight:400;color:var(–ink-faint);letter-spacing:.06em;text-transform:uppercase}
+.expand-val{font-size:.95rem;font-weight:500;color:var(–ink)}
+.expand-val.warn{color:var(–clay)}.expand-val.bad{color:var(–dried-rose)}.expand-val.rain{color:var(–stone-blue)}
+.model-compare{margin-top:10px;padding-top:10px;border-top:1px solid var(–card-border);display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.model-col{font-size:.7rem;color:var(–ink-faint)}
+.model-col strong{font-weight:500;color:var(–ink-soft);display:block;margin-bottom:2px;font-size:.65rem;letter-spacing:.04em;text-transform:uppercase}
 
-.btn-ghost {
-background: none; border: none;
-color: var(–ink-on-dark-faint);
-font-family: ‘Source Sans 3’, sans-serif;
-font-size: 0.8rem; font-weight: 400;
-cursor: pointer; padding: 6px 12px;
-border-radius: var(–radius-sm);
-transition: all var(–transition);
-}
-.btn-ghost:hover { color: var(–ink-on-dark); background: rgba(255,255,255,0.06); }
+/* LOADING */
+.forecast-loading{display:flex}
+.day-skel{flex:1 0 0;min-width:96px;height:140px;border-right:1px solid var(–card-border);position:relative;overflow:hidden}
+.day-skel:last-child{border-right:none}
+.day-skel::after{content:’’;position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(0,0,0,.03),transparent);animation:shimmer 2s ease-in-out infinite}
+@keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+.forecast-error{padding:24px;text-align:center;font-size:.8rem;color:var(–dried-rose)}
+.empty-state{text-align:center;padding:60px 20px;color:var(–ink-on-dark-faint)}
+.empty-state p{font-size:.9rem;font-weight:300;line-height:1.7}
 
-.sep { max-width: 800px; margin: 0 auto; padding: 0 24px; }
-.sep::after { content: ‘’; display: block; height: 1px; background: linear-gradient(90deg, transparent, var(–ink-on-dark-faint), transparent); opacity: 0.2; }
+/* LEGEND */
+.legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:32px;padding:0 4px}
+.legend-label{font-size:.65rem;color:var(–ink-on-dark-faint);letter-spacing:.05em;font-weight:300}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.7rem;color:var(–ink-on-dark-faint);font-weight:300}
+.legend-dot{width:8px;height:3px;border-radius:2px}
 
-main { max-width: 800px; margin: 0 auto; padding: 20px 24px 60px; }
+/* EXPLORE - region cards */
+.region-list{display:flex;flex-direction:column;gap:12px}
+.region-card{background:var(–card);border-radius:var(–radius);padding:16px 20px;box-shadow:0 2px 12px var(–card-shadow);animation:rise .5s ease-out both;transition:box-shadow .3s}
+.region-card:hover{box-shadow:0 4px 20px var(–card-shadow)}
+.region-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.region-rank{font-family:‘DM Mono’,monospace;font-size:.7rem;font-weight:500;color:var(–ink-ghost);width:24px}
+.region-name{font-size:1.05rem;font-weight:600;color:var(–ink);flex:1}
+.region-best{text-align:right}
+.region-best-score{font-family:‘DM Mono’,monospace;font-size:1.1rem;font-weight:500}
+.region-best-label{font-size:.6rem;color:var(–ink-faint);letter-spacing:.04em}
+.region-meta{font-size:.75rem;color:var(–ink-faint);margin-bottom:10px}
+.region-days{display:flex;gap:2px}
+.region-day-pip{flex:1;height:6px;border-radius:2px;transition:all .3s}
+.region-day-label{display:flex;justify-content:space-between;margin-top:4px}
+.region-day-label span{font-family:‘DM Mono’,monospace;font-size:.55rem;color:var(–ink-ghost)}
+.region-confidence{font-family:‘DM Mono’,monospace;font-size:.6rem;color:var(–ink-faint);margin-top:6px}
 
-.sort-bar { display: flex; align-items: center; gap: 4px; margin-bottom: 24px; }
-.sort-label { font-size: 0.7rem; color: var(–ink-on-dark-faint); margin-right: 8px; font-weight: 300; letter-spacing: 0.05em; }
+/* EXPLORE sort */
+.explore-controls{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.explore-day-select{font-family:‘Source Sans 3’,sans-serif;font-size:.8rem;background:var(–bg-warm);color:var(–ink-on-dark);border:1px solid var(–ink-on-dark-faint);padding:5px 10px;border-radius:var(–radius-sm);cursor:pointer}
+.explore-day-select:focus{outline:none;border-color:var(–moss)}
 
-.sort-btn {
-background: none; border: none;
-color: var(–ink-on-dark-faint);
-font-family: ‘Source Sans 3’, sans-serif;
-font-size: 0.75rem; font-weight: 400;
-cursor: pointer; padding: 4px 10px;
-border-radius: 20px; transition: all var(–transition);
-}
-.sort-btn:hover { color: var(–ink-on-dark-soft); }
-.sort-btn.active { background: rgba(255,255,255,0.08); color: var(–ink-on-dark); }
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(28,26,22,.75);z-index:500;align-items:flex-end;justify-content:center;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(–card);border-radius:var(–radius) var(–radius) 0 0;padding:32px 28px 40px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto;position:relative;animation:sheet-up .3s ease-out}
+@keyframes sheet-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@media(min-width:600px){.modal-overlay{align-items:center}.modal{border-radius:var(–radius);max-height:85vh}@keyframes sheet-up{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}}
+.modal-handle{width:32px;height:3px;background:var(–ink-ghost);border-radius:2px;margin:0 auto 20px}
+@media(min-width:600px){.modal-handle{display:none}}
+.modal h2{font-size:1.1rem;font-weight:600;color:var(–ink);margin-bottom:24px}
+.field{margin-bottom:18px}
+.field label{display:block;font-size:.72rem;font-weight:500;color:var(–ink-faint);letter-spacing:.04em;text-transform:uppercase;margin-bottom:6px}
+.field input{width:100%;background:#fff;border:1px solid var(–card-border);color:var(–ink);font-family:‘Source Sans 3’,sans-serif;font-size:.95rem;padding:10px 14px;border-radius:var(–radius-sm);outline:none;transition:border-color var(–transition)}
+.field input:focus{border-color:var(–moss)}
+.field input::placeholder{color:var(–ink-ghost)}
+.field-hint{font-size:.7rem;color:var(–ink-faint);margin-top:4px;font-weight:300}
+.orient-grid{display:flex;gap:5px;flex-wrap:wrap}
+.orient-btn{font-family:‘DM Mono’,monospace;font-size:.7rem;padding:5px 11px;border:1px solid var(–card-border);background:#fff;color:var(–ink-faint);cursor:pointer;border-radius:3px;transition:all var(–transition)}
+.orient-btn:hover{border-color:var(–ink-faint)}
+.orient-btn.active{background:var(–moss-soft);border-color:var(–moss);color:var(–moss)}
+.modal-btns{display:flex;gap:10px;margin-top:28px}
+.modal-btns button{flex:1;padding:12px;font-family:‘Source Sans 3’,sans-serif;font-size:.85rem;font-weight:500;cursor:pointer;border-radius:var(–radius-sm);transition:all var(–transition)}
+.btn-primary{background:var(–ink);color:var(–card);border:none}
+.btn-primary:hover{background:var(–ink-soft)}
+.btn-secondary{background:none;border:1px solid var(–card-border);color:var(–ink-faint)}
+.btn-secondary:hover{border-color:var(–ink-faint);color:var(–ink-soft)}
 
-/* ─── CARD ─── */
-.crag-card {
-background: var(–card);
-border-radius: var(–radius);
-margin-bottom: 20px;
-box-shadow: 0 2px 16px var(–card-shadow), 0 1px 3px var(–card-shadow);
-overflow: hidden;
-animation: rise 0.5s ease-out both;
-transition: box-shadow 0.3s;
-}
-.crag-card:hover { box-shadow: 0 4px 24px var(–card-shadow), 0 1px 3px var(–card-shadow); }
-@keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.sandbox-banner{background:var(–clay-soft);border:1px solid var(–clay);border-radius:var(–radius-sm);padding:12px 18px;margin-bottom:20px;font-size:.8rem;color:var(–clay);line-height:1.5}
 
-.card-top { padding: 20px 24px 16px; }
-.card-top-row { display: flex; align-items: flex-start; justify-content: space-between; }
-.crag-name { font-size: 1.25rem; font-weight: 600; color: var(–ink); line-height: 1.2; }
-
-.card-actions { display: flex; gap: 2px; margin: -4px -8px 0 0; }
-.card-action-btn {
-background: none; border: none;
-color: var(–ink-ghost); cursor: pointer;
-font-size: 0.85rem; padding: 6px 8px;
-border-radius: var(–radius-sm);
-transition: all var(–transition);
-}
-.card-action-btn:hover { color: var(–ink-soft); background: rgba(0,0,0,0.04); }
-
-.crag-detail-row { display: flex; align-items: center; gap: 16px; margin-top: 6px; flex-wrap: wrap; }
-.crag-detail { font-size: 0.8rem; color: var(–ink-faint); }
-
-.orientation-row { display: flex; gap: 4px; margin-top: 10px; }
-.orient-chip {
-font-family: ‘DM Mono’, monospace;
-font-size: 0.6rem; padding: 2px 7px;
-border-radius: 3px; background: var(–card-hover);
-color: var(–ink-faint); letter-spacing: 0.04em;
-}
-.orient-chip.sun { background: var(–clay-soft); color: var(–clay); }
-
-/* ─── FORECAST ─── */
-.forecast-area { border-top: 1px solid var(–card-border); }
-
-.forecast-scroll {
-display: flex; overflow-x: auto;
-scroll-snap-type: x proximity;
--webkit-overflow-scrolling: touch;
-scrollbar-width: none;
-}
-.forecast-scroll::-webkit-scrollbar { display: none; }
-
-.day-cell {
-flex: 1 0 0; min-width: 96px;
-padding: 16px 8px 14px;
-text-align: center; cursor: pointer;
-position: relative; scroll-snap-align: start;
-transition: background var(–transition);
-border-right: 1px solid var(–card-border);
-}
-.day-cell:last-child { border-right: none; }
-.day-cell:hover { background: var(–card-hover); }
-.day-cell.today .day-name { color: var(–moss); font-weight: 600; }
-.day-cell.today::after {
-content: ‘’; position: absolute; bottom: 0; left: 50%;
-transform: translateX(-50%); width: 24px; height: 2px;
-background: var(–moss); border-radius: 1px;
-}
-.day-cell.expanded-cell { background: var(–card-hover); }
-
-.day-name { font-size: 0.7rem; font-weight: 500; color: var(–ink-soft); letter-spacing: 0.06em; text-transform: uppercase; }
-.day-date { font-size: 1.15rem; font-weight: 300; color: var(–ink); margin: 1px 0 8px; line-height: 1; }
-.day-icon { font-size: 1.4rem; line-height: 1; margin-bottom: 8px; }
-
-.score-bar-wrap { width: 100%; height: 3px; background: var(–card-border); border-radius: 2px; overflow: hidden; margin-bottom: 6px; }
-.score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.8s ease-out, background 0.3s; }
-
-.score-num { font-family: ‘DM Mono’, monospace; font-size: 0.85rem; font-weight: 500; line-height: 1; }
-.score-word { font-size: 0.6rem; font-weight: 400; color: var(–ink-faint); letter-spacing: 0.06em; margin-top: 2px; }
-
-/* ─── EXPAND ─── */
-.day-expand {
-border-top: 1px solid var(–card-border);
-padding: 16px 24px;
-background: var(–card-hover);
-animation: slideDown 0.25s ease-out;
-}
-@keyframes slideDown { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
-
-.expand-header { font-size: 0.75rem; color: var(–ink-faint); margin-bottom: 10px; font-weight: 400; }
-.expand-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px 24px; }
-.expand-item { display: flex; flex-direction: column; gap: 2px; }
-.expand-label { font-size: 0.65rem; font-weight: 400; color: var(–ink-faint); letter-spacing: 0.06em; text-transform: uppercase; }
-.expand-val { font-size: 0.95rem; font-weight: 500; color: var(–ink); }
-.expand-val.warn { color: var(–clay); }
-.expand-val.bad { color: var(–dried-rose); }
-.expand-val.rain { color: var(–stone-blue); }
-
-/* ─── LOADING ─── */
-.forecast-loading { display: flex; }
-.day-skel {
-flex: 1 0 0; min-width: 96px; height: 140px;
-border-right: 1px solid var(–card-border);
-position: relative; overflow: hidden;
-}
-.day-skel:last-child { border-right: none; }
-.day-skel::after {
-content: ‘’; position: absolute; inset: 0;
-background: linear-gradient(90deg, transparent, rgba(0,0,0,0.03), transparent);
-animation: shimmer 2s ease-in-out infinite;
-}
-@keyframes shimmer { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-
-.forecast-error { padding: 24px; text-align: center; font-size: 0.8rem; color: var(–dried-rose); }
-.empty-state { text-align: center; padding: 60px 20px; color: var(–ink-on-dark-faint); }
-.empty-state p { font-size: 0.9rem; font-weight: 300; line-height: 1.7; }
-
-.legend { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; margin-top: 32px; padding: 0 4px; }
-.legend-label { font-size: 0.65rem; color: var(–ink-on-dark-faint); letter-spacing: 0.05em; font-weight: 300; }
-.legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.7rem; color: var(–ink-on-dark-faint); font-weight: 300; }
-.legend-dot { width: 8px; height: 3px; border-radius: 2px; }
-
-/* ─── MODAL ─── */
-.modal-overlay {
-display: none; position: fixed; inset: 0;
-background: rgba(28, 26, 22, 0.75);
-z-index: 500; align-items: flex-end; justify-content: center;
-backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
-}
-.modal-overlay.open { display: flex; }
-
-.modal {
-background: var(–card);
-border-radius: var(–radius) var(–radius) 0 0;
-padding: 32px 28px 40px;
-width: 100%; max-width: 520px; max-height: 90vh;
-overflow-y: auto; position: relative;
-animation: sheet-up 0.3s ease-out;
-}
-@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
-
-@media (min-width: 600px) {
-.modal-overlay { align-items: center; }
-.modal { border-radius: var(–radius); max-height: 85vh; }
-@keyframes sheet-up { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-}
-
-.modal-handle { width: 32px; height: 3px; background: var(–ink-ghost); border-radius: 2px; margin: 0 auto 20px; }
-@media (min-width: 600px) { .modal-handle { display: none; } }
-
-.modal h2 { font-size: 1.1rem; font-weight: 600; color: var(–ink); margin-bottom: 24px; }
-.field { margin-bottom: 18px; }
-.field label { display: block; font-size: 0.72rem; font-weight: 500; color: var(–ink-faint); letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 6px; }
-.field input {
-width: 100%; background: #fff;
-border: 1px solid var(–card-border); color: var(–ink);
-font-family: ‘Source Sans 3’, sans-serif; font-size: 0.95rem;
-padding: 10px 14px; border-radius: var(–radius-sm);
-outline: none; transition: border-color var(–transition);
-}
-.field input:focus { border-color: var(–moss); }
-.field input::placeholder { color: var(–ink-ghost); }
-.field-hint { font-size: 0.7rem; color: var(–ink-faint); margin-top: 4px; font-weight: 300; }
-
-.orient-grid { display: flex; gap: 5px; flex-wrap: wrap; }
-.orient-btn {
-font-family: ‘DM Mono’, monospace; font-size: 0.7rem;
-padding: 5px 11px; border: 1px solid var(–card-border);
-background: #fff; color: var(–ink-faint); cursor: pointer;
-border-radius: 3px; transition: all var(–transition);
-}
-.orient-btn:hover { border-color: var(–ink-faint); }
-.orient-btn.active { background: var(–moss-soft); border-color: var(–moss); color: var(–moss); }
-
-.modal-btns { display: flex; gap: 10px; margin-top: 28px; }
-.modal-btns button {
-flex: 1; padding: 12px;
-font-family: ‘Source Sans 3’, sans-serif;
-font-size: 0.85rem; font-weight: 500;
-cursor: pointer; border-radius: var(–radius-sm);
-transition: all var(–transition);
-}
-.btn-primary { background: var(–ink); color: var(–card); border: none; }
-.btn-primary:hover { background: var(–ink-soft); }
-.btn-secondary { background: none; border: 1px solid var(–card-border); color: var(–ink-faint); }
-.btn-secondary:hover { border-color: var(–ink-faint); color: var(–ink-soft); }
-
-.sandbox-banner {
-background: var(–clay-soft); border: 1px solid var(–clay);
-border-radius: var(–radius-sm); padding: 12px 18px; margin-bottom: 20px;
-font-size: 0.8rem; color: var(–clay); line-height: 1.5;
-}
-
-@media (max-width: 500px) {
-header { padding: 20px 18px 16px; }
-main { padding: 16px 18px 48px; }
-.card-top { padding: 16px 18px 14px; }
-.day-cell { min-width: 80px; padding: 14px 6px 12px; }
-.day-expand { padding: 14px 18px; }
-.expand-grid { grid-template-columns: repeat(2, 1fr); }
+@media(max-width:500px){
+header{padding:20px 18px 16px}main{padding:12px 18px 48px}.card-top{padding:16px 18px 14px}
+.day-cell{min-width:80px;padding:14px 6px 12px}.day-expand{padding:14px 18px}
+.expand-grid{grid-template-columns:repeat(2,1fr)}
 }
 </style>
 
@@ -315,303 +186,386 @@ main { padding: 16px 18px 48px; }
 <body>
 
 <header>
-<div class="brand">
-<h1>crag meteo</h1>
-<span class="brand-dot"></span>
-</div>
-<div class="header-meta">
-<div class="status">
-<div class="status-dot" id="statusDot"></div>
-<span id="statusText"></span>
-</div>
-<div class="header-actions">
-<button class="btn-ghost" onclick="refreshAll()">refresh</button>
-<button class="btn-ghost" onclick="openModal()">+ add crag</button>
-</div>
-</div>
+  <div class="brand"><h1>crag meteo</h1><span class="brand-dot"></span></div>
+  <div class="header-meta">
+    <div class="status"><div class="status-dot" id="statusDot"></div><span id="statusText"></span></div>
+    <div class="header-actions">
+      <button class="btn-ghost" onclick="refreshAll()">refresh</button>
+      <button class="btn-ghost" onclick="openModal()">+ add crag</button>
+    </div>
+  </div>
 </header>
-
 <div class="sep"></div>
 
+<!-- TABS -->
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="switchTab('crags',this)">my crags</button>
+  <button class="tab-btn" onclick="switchTab('explore',this)">explore</button>
+</div>
+
 <main>
-<div class="sort-bar">
-<span class="sort-label">sort</span>
-<button class="sort-btn active" data-sort="name" onclick="setSort(this)">name</button>
-<button class="sort-btn" data-sort="score" onclick="setSort(this)">best day</button>
-<button class="sort-btn" data-sort="region" onclick="setSort(this)">region</button>
-</div>
-<div id="cragGrid"></div>
-<div class="legend">
-<span class="legend-label">score</span>
-<div class="legend-item"><div class="legend-dot" style="background:var(--score-great)"></div>80+ send it</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--score-good)"></div>60–79 good</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--score-ok)"></div>40–59 maybe</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--score-poor)"></div>20–39 meh</div>
-<div class="legend-item"><div class="legend-dot" style="background:var(--score-bad)"></div>0–19 rest</div>
-</div>
+  <!-- CRAGS TAB -->
+  <div class="tab-pane active" id="pane-crags">
+    <div class="sort-bar">
+      <span class="sort-label">sort</span>
+      <button class="sort-btn active" data-sort="name" onclick="setSort(this)">name</button>
+      <button class="sort-btn" data-sort="score" onclick="setSort(this)">best day</button>
+      <button class="sort-btn" data-sort="region" onclick="setSort(this)">region</button>
+    </div>
+    <div id="cragGrid"></div>
+    <div class="legend">
+      <span class="legend-label">score</span>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--score-great)"></div>80+ send it</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--score-good)"></div>60–79 good</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--score-ok)"></div>40–59 maybe</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--score-poor)"></div>20–39 meh</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--score-bad)"></div>0–19 rest</div>
+    </div>
+  </div>
+
+  <!-- EXPLORE TAB -->
+
+  <div class="tab-pane" id="pane-explore">
+    <div class="explore-controls">
+      <span class="sort-label">rank by</span>
+      <select class="explore-day-select" id="exploreDaySelect" onchange="renderExplore()">
+        <option value="best">best day (7-day)</option>
+      </select>
+    </div>
+    <div id="exploreGrid"></div>
+  </div>
 </main>
 
+<!-- MODAL -->
+
 <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
-<div class="modal" onclick="event.stopPropagation()">
-<div class="modal-handle"></div>
-<h2 id="modalTitle">Add a crag</h2>
-<div class="field"><label>Name</label><input type="text" id="inputName" placeholder="e.g. Sobrio"></div>
-<div class="field"><label>Region</label><input type="text" id="inputRegion" placeholder="e.g. Ticino"></div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-<div class="field"><label>Latitude</label><input type="number" step="any" id="inputLat" placeholder="46.480"></div>
-<div class="field"><label>Longitude</label><input type="number" step="any" id="inputLon" placeholder="8.920"></div>
-</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-<div class="field"><label>Altitude (m)</label><input type="number" id="inputAlt" placeholder="950"></div>
-<div class="field"><label>Rock type</label><input type="text" id="inputRock" placeholder="Gneiss"></div>
-</div>
-<div class="field">
-<label>Wall orientation</label>
-<div class="orient-grid" id="orientationBtns"></div>
-<p class="field-hint">Which directions catch sun</p>
-</div>
-<div class="modal-btns">
-<button class="btn-secondary" onclick="closeModal()">Cancel</button>
-<button class="btn-primary" onclick="saveCrag()">Save</button>
-</div>
-</div>
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-handle"></div>
+    <h2 id="modalTitle">Add a crag</h2>
+    <div class="field"><label>Name</label><input type="text" id="inputName" placeholder="e.g. Sobrio"></div>
+    <div class="field"><label>Region</label><input type="text" id="inputRegion" placeholder="e.g. Ticino"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>Latitude</label><input type="number" step="any" id="inputLat" placeholder="46.480"></div>
+      <div class="field"><label>Longitude</label><input type="number" step="any" id="inputLon" placeholder="8.920"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>Altitude (m)</label><input type="number" id="inputAlt" placeholder="950"></div>
+      <div class="field"><label>Rock type</label><input type="text" id="inputRock" placeholder="Gneiss"></div>
+    </div>
+    <div class="field">
+      <label>Wall orientation</label>
+      <div class="orient-grid" id="orientationBtns"></div>
+      <p class="field-hint">Which directions catch sun</p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+      <button class="btn-primary" onclick="saveCrag()">Save</button>
+    </div>
+  </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'cragMeteo_v3';
-const ORIENTATIONS = ['N','NE','E','SE','S','SW','W','NW'];
+const STORAGE_KEY='cragMeteo_v4';
+const ORIENTATIONS=['N','NE','E','SE','S','SW','W','NW'];
+const DAILY_VARS='temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunshine_duration,uv_index_max';
 
-const DEFAULT_CRAGS = [
-{ id: 'sobrio', name: 'Sobrio', region: 'Ticino', lat: 46.480, lon: 8.920, alt: 950, orientation: ['S','SE','SW'], rock: 'Gneiss' },
-{ id: 'sunneplaettli', name: 'Sunneplättli', region: 'Schwyz (Gersau)', lat: 46.994, lon: 8.524, alt: 650, orientation: ['S','SW'], rock: 'Limestone' }
+const DEFAULT_CRAGS=[
+  {id:'sobrio',name:'Sobrio',region:'Ticino',lat:46.480,lon:8.920,alt:950,orientation:['S','SE','SW'],rock:'Gneiss'},
+  {id:'sunneplaettli',name:'Sunneplättli',region:'Schwyz (Gersau)',lat:46.994,lon:8.524,alt:650,orientation:['S','SW'],rock:'Limestone'}
 ];
 
-let crags = [], forecastCache = {}, currentSort = 'name', editingId = null, expandedDay = {};
+// 8 Swiss climbing regions with representative coordinates
+const REGIONS=[
+  {id:'ticino',name:'Ticino',sub:'Cresciano / Bellinzona',lat:46.23,lon:8.96,alt:500},
+  {id:'wallis',name:'Wallis / Valais',sub:'Saas / Visp area',lat:46.30,lon:7.88,alt:800},
+  {id:'berner-oberland',name:'Berner Oberland',sub:'Interlaken area',lat:46.69,lon:7.86,alt:700},
+  {id:'zentralschweiz',name:'Zentralschweiz',sub:'Gersau / Rigi area',lat:46.99,lon:8.52,alt:600},
+  {id:'jura',name:'Jura',sub:'Basel / Delémont',lat:47.37,lon:7.35,alt:500},
+  {id:'ostschweiz',name:'Ostschweiz / Graubünden',sub:'Chur area',lat:46.85,lon:9.53,alt:600},
+  {id:'gotthard',name:'Gotthard / Uri',sub:'Sustenpass area',lat:46.73,lon:8.45,alt:1200},
+  {id:'voralpen',name:'Voralpen',sub:'Engelberg area',lat:46.82,lon:8.40,alt:900}
+];
 
-function loadCrags() {
-try { const s = localStorage.getItem(STORAGE_KEY); crags = s ? JSON.parse(s) : [...DEFAULT_CRAGS]; if (!s) saveCragsToStorage(); }
-catch(e) { crags = [...DEFAULT_CRAGS]; }
-}
-function saveCragsToStorage() { localStorage.setItem(STORAGE_KEY, JSON.stringify(crags)); }
+let crags=[],forecastCache={},regionCache={},currentSort='name',editingId=null,expandedDay={};
 
-async function fetchForecast(crag) {
-const params = new URLSearchParams({
-latitude: crag.lat, longitude: crag.lon,
-daily: 'temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunshine_duration,uv_index_max',
-timezone: 'Europe/Zurich', forecast_days: 7,
-});
-try {
-const r = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
-if (!r.ok) throw new Error(`HTTP ${r.status}`);
-return r.json();
-} catch(e) {
-const sb = (window.self !== window.top) || (window.location.protocol === 'blob:');
-if (sb || e.message?.includes('Failed to fetch') || e.name === 'TypeError')
-throw new Error('Preview mode — open in browser for live data');
-throw e;
-}
-}
+// ─── PERSISTENCE ───
+function loadCrags(){try{const s=localStorage.getItem(STORAGE_KEY);crags=s?JSON.parse(s):[...DEFAULT_CRAGS];if(!s)saveCragsToStorage()}catch(e){crags=[...DEFAULT_CRAGS]}}
+function saveCragsToStorage(){localStorage.setItem(STORAGE_KEY,JSON.stringify(crags))}
 
-function computeScore(d) {
-let s = 100;
-const p = d.precipitation_sum||0, pp = d.precipitation_probability_max||0;
-if (p > 5) s -= 60; else if (p > 2) s -= 40; else if (p > 0.5) s -= 20; else if (p > 0) s -= 8;
-s -= (pp/100)*15;
-const w = d.wind_speed_10m_max||0, g = d.wind_gusts_10m_max||0;
-if (g > 60) s -= 35; else if (g > 40) s -= 20; else if (w > 30) s -= 15; else if (w > 20) s -= 5;
-const t = d.temperature_2m_max;
-if (t !== undefined) { if (t < 2) s -= 30; else if (t < 6) s -= 18; else if (t < 10) s -= 8; else if (t > 35) s -= 25; else if (t > 30) s -= 12; }
-const wc = d.weather_code||0;
-if (wc >= 95) s -= 30; else if (wc >= 71) s -= 25; else if (wc >= 61) s -= 20; else if (wc >= 51) s -= 10; else if (wc >= 45) s -= 8;
-return Math.max(0, Math.min(100, Math.round(s)));
+// ─── DUAL-MODEL FETCH ───
+async function fetchDual(lat,lon){
+  const base={latitude:lat,longitude:lon,daily:DAILY_VARS,timezone:'Europe/Zurich',forecast_days:7};
+  const urlBest=`https://api.open-meteo.com/v1/forecast?${new URLSearchParams(base)}`;
+  const urlECMWF=`https://api.open-meteo.com/v1/forecast?${new URLSearchParams({...base,models:'ecmwf_ifs'})}`;
+
+  try{
+    const [rBest,rECMWF]=await Promise.all([fetch(urlBest),fetch(urlECMWF)]);
+    const best=rBest.ok?await rBest.json():null;
+    const ecmwf=rECMWF.ok?await rECMWF.json():null;
+    if(!best&&!ecmwf) throw new Error('Both models failed');
+    return {best,ecmwf};
+  }catch(e){
+    const sb=(window.self!==window.top)||(window.location.protocol==='blob:');
+    if(sb||e.message?.includes('Failed to fetch')||e.name==='TypeError')
+      throw new Error('Preview mode — open in browser');
+    throw e;
+  }
 }
 
-function scoreColor(s) { return s >= 80 ? 'var(--score-great)' : s >= 60 ? 'var(--score-good)' : s >= 40 ? 'var(--score-ok)' : s >= 20 ? 'var(--score-poor)' : 'var(--score-bad)'; }
-function scoreWord(s) { return s >= 80 ? 'send it' : s >= 60 ? 'good' : s >= 40 ? 'maybe' : s >= 20 ? 'meh' : 'rest'; }
-
-function weatherIcon(c) {
-if (c == null) return '—';
-if (c <= 1) return '☀️'; if (c <= 3) return '⛅'; if (c <= 48) return '🌫️';
-if (c <= 57) return '🌦️'; if (c <= 67) return '🌧️'; if (c <= 77) return '🌨️';
-if (c <= 82) return '🌧️'; if (c <= 86) return '🌨️'; if (c >= 95) return '⛈️'; return '🌥️';
+// ─── SCORE ───
+function computeScore(d){
+  let s=100;const p=d.precipitation_sum||0,pp=d.precipitation_probability_max||0;
+  if(p>5)s-=60;else if(p>2)s-=40;else if(p>.5)s-=20;else if(p>0)s-=8;
+  s-=(pp/100)*15;
+  const w=d.wind_speed_10m_max||0,g=d.wind_gusts_10m_max||0;
+  if(g>60)s-=35;else if(g>40)s-=20;else if(w>30)s-=15;else if(w>20)s-=5;
+  const t=d.temperature_2m_max;
+  if(t!==undefined){if(t<2)s-=30;else if(t<6)s-=18;else if(t<10)s-=8;else if(t>35)s-=25;else if(t>30)s-=12}
+  const wc=d.weather_code||0;
+  if(wc>=95)s-=30;else if(wc>=71)s-=25;else if(wc>=61)s-=20;else if(wc>=51)s-=10;else if(wc>=45)s-=8;
+  return Math.max(0,Math.min(100,Math.round(s)));
 }
 
-function extractDay(fc, i) {
-return { temperature_2m_max: fc.daily.temperature_2m_max[i], temperature_2m_min: fc.daily.temperature_2m_min[i],
-precipitation_sum: fc.daily.precipitation_sum[i], precipitation_probability_max: fc.daily.precipitation_probability_max[i],
-wind_speed_10m_max: fc.daily.wind_speed_10m_max[i], wind_gusts_10m_max: fc.daily.wind_gusts_10m_max[i],
-weather_code: fc.daily.weather_code[i], sunshine_duration: fc.daily.sunshine_duration?.[i], uv_index_max: fc.daily.uv_index_max?.[i] };
+function blendedScore(fc,di){
+  const bestDay=fc.best?extractDay(fc.best,di):null;
+  const ecmwfDay=fc.ecmwf?extractDay(fc.ecmwf,di):null;
+  const sBest=bestDay?computeScore(bestDay):null;
+  const sECMWF=ecmwfDay?computeScore(ecmwfDay):null;
+  if(sBest!==null&&sECMWF!==null){
+    const avg=Math.round((sBest+sECMWF)/2);
+    const diff=Math.abs(sBest-sECMWF);
+    const confidence=diff<=10?'high':diff<=25?'medium':'low';
+    return{score:avg,confidence,sBest,sECMWF};
+  }
+  const score=sBest??sECMWF??0;
+  return{score,confidence:'single',sBest,sECMWF};
 }
 
-function renderCards() {
-const grid = document.getElementById('cragGrid');
-let sorted = [...crags];
-if (currentSort === 'score') sorted.sort((a,b) => getBestScore(b.id) - getBestScore(a.id));
-else if (currentSort === 'region') sorted.sort((a,b) => (a.region||'').localeCompare(b.region||''));
-else sorted.sort((a,b) => a.name.localeCompare(b.name));
+function scoreColor(s){return s>=80?'var(--score-great)':s>=60?'var(--score-good)':s>=40?'var(--score-ok)':s>=20?'var(--score-poor)':'var(--score-bad)'}
+function scoreColorHex(s){return s>=80?'#6b8f5e':s>=60?'#8a9a6b':s>=40?'#b89f5e':s>=20?'#b8764e':'#a67272'}
+function scoreWord(s){return s>=80?'send it':s>=60?'good':s>=40?'maybe':s>=20?'meh':'rest'}
+function weatherIcon(c){if(c==null)return'—';if(c<=1)return'☀️';if(c<=3)return'⛅';if(c<=48)return'🌫️';if(c<=57)return'🌦️';if(c<=67)return'🌧️';if(c<=77)return'🌨️';if(c<=82)return'🌧️';if(c<=86)return'🌨️';if(c>=95)return'⛈️';return'🌥️'}
+function extractDay(fc,i){return{temperature_2m_max:fc.daily.temperature_2m_max[i],temperature_2m_min:fc.daily.temperature_2m_min[i],precipitation_sum:fc.daily.precipitation_sum[i],precipitation_probability_max:fc.daily.precipitation_probability_max[i],wind_speed_10m_max:fc.daily.wind_speed_10m_max[i],wind_gusts_10m_max:fc.daily.wind_gusts_10m_max[i],weather_code:fc.daily.weather_code[i],sunshine_duration:fc.daily.sunshine_duration?.[i],uv_index_max:fc.daily.uv_index_max?.[i]}}
+function confLabel(c){return c==='high'?'':'<span class="confidence-tag '+(c==='medium'?'medium':'low')+'">'+(c==='medium'?'uncertain':'models split')+'</span>'}
 
-if (!sorted.length) { grid.innerHTML = '<div class="empty-state"><p>No crags yet.<br>Tap "+ add crag" to begin.</p></div>'; return; }
+// ─── RENDER CRAGS ───
+function renderCards(){
+  const grid=document.getElementById('cragGrid');
+  let sorted=[...crags];
+  if(currentSort==='score')sorted.sort((a,b)=>getBestBlended(b.id)-getBestBlended(a.id));
+  else if(currentSort==='region')sorted.sort((a,b)=>(a.region||'').localeCompare(b.region||''));
+  else sorted.sort((a,b)=>a.name.localeCompare(b.name));
 
-const sunFaces = ['S','SE','SW','E','W'];
-const today = new Date().toISOString().slice(0,10);
+  if(!sorted.length){grid.innerHTML='<div class="empty-state"><p>No crags yet.<br>Tap "+ add crag" to begin.</p></div>';return}
+  const sunFaces=['S','SE','SW','E','W'],today=new Date().toISOString().slice(0,10);
 
-grid.innerHTML = sorted.map((c, ci) => {
-const fc = forecastCache[c.id];
-const orientHTML = (c.orientation||[]).map(o => `<span class="orient-chip ${sunFaces.includes(o)?'sun':''}">${o}</span>`).join('');
+  grid.innerHTML=sorted.map((c,ci)=>{
+    const fc=forecastCache[c.id];
+    const orientHTML=(c.orientation||[]).map(o=>`<span class="orient-chip ${sunFaces.includes(o)?'sun':''}">${o}</span>`).join('');
+    let fHTML;
+    if(!fc){fHTML=`<div class="forecast-area"><div class="forecast-loading">${'<div class="day-skel"></div>'.repeat(7)}</div></div>`}
+    else if(fc.error){fHTML=`<div class="forecast-area"><div class="forecast-error">${fc.error}</div></div>`}
+    else{
+      const src=fc.best||fc.ecmwf;
+      if(!src||!src.daily){fHTML=`<div class="forecast-area"><div class="forecast-error">No data</div></div>`}
+      else{
+        const expIdx=expandedDay[c.id];
+        const cells=src.daily.time.map((t,di)=>{
+          const dt=new Date(t+'T00:00:00');
+          const bl=blendedScore(fc,di);
+          const col=scoreColor(bl.score);
+          const isExp=expIdx===di;
+          return`<div class="day-cell ${t===today?'today':''} ${isExp?'expanded-cell':''}" onclick="toggleExpand('${c.id}',${di})">
+            <div class="day-name">${dt.toLocaleDateString('en-US',{weekday:'short'})}</div>
+            <div class="day-date">${dt.getDate()}</div>
+            <div class="day-icon">${weatherIcon((fc.best?extractDay(fc.best,di):extractDay(fc.ecmwf,di)).weather_code)}</div>
+            <div class="score-bar-wrap"><div class="score-bar-fill" style="width:${bl.score}%;background:${col}"></div></div>
+            <div class="score-num" style="color:${col}">${bl.score}</div>
+            <div class="score-word">${scoreWord(bl.score)}</div>
+            ${confLabel(bl.confidence)}
+          </div>`;
+        }).join('');
 
-let fHTML;
-if (!fc) {
-fHTML = `<div class="forecast-area"><div class="forecast-loading">${'<div class="day-skel"></div>'.repeat(7)}</div></div>`;
-} else if (fc.error) {
-fHTML = `<div class="forecast-area"><div class="forecast-error">${fc.error}</div></div>`;
-} else {
-const expIdx = expandedDay[c.id];
-const cells = fc.daily.time.map((t, di) => {
-const dt = new Date(t+'T00:00:00');
-const dd = extractDay(fc, di);
-const sc = computeScore(dd);
-const col = scoreColor(sc);
-const isExp = expIdx === di;
-return `<div class="day-cell ${t===today?'today':''} ${isExp?'expanded-cell':''}" onclick="toggleExpand('${c.id}',${di})">
-<div class="day-name">${dt.toLocaleDateString('en-US',{weekday:'short'})}</div>
-<div class="day-date">${dt.getDate()}</div>
-<div class="day-icon">${weatherIcon(dd.weather_code)}</div>
-<div class="score-bar-wrap"><div class="score-bar-fill" style="width:${sc}%;background:${col}"></div></div>
-<div class="score-num" style="color:${col}">${sc}</div>
-<div class="score-word">${scoreWord(sc)}</div>
-</div>`;
-}).join('');
+        let expHTML='';
+        if(expIdx!=null&&src.daily.time[expIdx]){
+          const dd=extractDay(fc.best||fc.ecmwf,expIdx);
+          const p=dd.precipitation_sum||0,pp=dd.precipitation_probability_max||0;
+          const w=dd.wind_speed_10m_max||0,g=dd.wind_gusts_10m_max||0;
+          const sh=dd.sunshine_duration?(dd.sunshine_duration/3600).toFixed(1):'—';
+          const uv=dd.uv_index_max!=null?dd.uv_index_max.toFixed(0):'—';
+          let wc=g>50?'bad':g>35||w>25?'warn':'';
+          let rc=p>.5?'rain':'';
+          const dl=new Date(src.daily.time[expIdx]+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
 
-let expHTML = '';
-if (expIdx != null) {
-const dd = extractDay(fc, expIdx);
-const p = dd.precipitation_sum||0, pp = dd.precipitation_probability_max||0;
-const w = dd.wind_speed_10m_max||0, g = dd.wind_gusts_10m_max||0;
-const sh = dd.sunshine_duration ? (dd.sunshine_duration/3600).toFixed(1) : '—';
-const uv = dd.uv_index_max != null ? dd.uv_index_max.toFixed(0) : '—';
-let wc = g > 50 ? 'bad' : (g > 35 || w > 25) ? 'warn' : '';
-let rc = p > 0.5 ? 'rain' : '';
-const dl = new Date(fc.daily.time[expIdx]+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
+          // Model comparison
+          let modelHTML='';
+          if(fc.best&&fc.ecmwf){
+            const db=extractDay(fc.best,expIdx),de=extractDay(fc.ecmwf,expIdx);
+            modelHTML=`<div class="model-compare">
+              <div class="model-col"><strong>Best-match (local)</strong>Rain: ${(db.precipitation_sum||0).toFixed(1)}mm · ${db.precipitation_probability_max||0}%<br>Wind: ${Math.round(db.wind_speed_10m_max||0)} km/h<br>Score: ${computeScore(db)}</div>
+              <div class="model-col"><strong>ECMWF IFS</strong>Rain: ${(de.precipitation_sum||0).toFixed(1)}mm · ${de.precipitation_probability_max||0}%<br>Wind: ${Math.round(de.wind_speed_10m_max||0)} km/h<br>Score: ${computeScore(de)}</div>
+            </div>`;
+          }
 
-expHTML = `<div class="day-expand">
-<div class="expand-header">${dl}</div>
-<div class="expand-grid">
-<div class="expand-item"><span class="expand-label">Temperature</span><span class="expand-val">${dd.temperature_2m_min!=null?Math.round(dd.temperature_2m_min):'?'}° / ${dd.temperature_2m_max!=null?Math.round(dd.temperature_2m_max):'?'}°</span></div>
-<div class="expand-item"><span class="expand-label">Rain</span><span class="expand-val ${rc}">${p.toFixed(1)} mm · ${pp}%</span></div>
-<div class="expand-item"><span class="expand-label">Wind</span><span class="expand-val ${wc}">${Math.round(w)} km/h</span></div>
-<div class="expand-item"><span class="expand-label">Gusts</span><span class="expand-val ${wc}">${Math.round(g)} km/h</span></div>
-<div class="expand-item"><span class="expand-label">Sunshine</span><span class="expand-val">${sh} h</span></div>
-<div class="expand-item"><span class="expand-label">UV index</span><span class="expand-val">${uv}</span></div>
-</div>
-</div>`;
-}
-fHTML = `<div class="forecast-area"><div class="forecast-scroll">${cells}</div>${expHTML}</div>`;
-}
-
-return `<div class="crag-card" style="animation-delay:${ci*0.1}s">
-<div class="card-top">
-<div class="card-top-row">
-<div class="crag-name">${c.name}</div>
-<div class="card-actions">
-<button class="card-action-btn" onclick="editCrag('${c.id}')">✎</button>
-<button class="card-action-btn" onclick="removeCrag('${c.id}')">✕</button>
-</div>
-</div>
-<div class="crag-detail-row">
-<span class="crag-detail">${c.region||''}</span>
-<span class="crag-detail">${c.alt||'—'}m</span>
-<span class="crag-detail">${c.rock||''}</span>
-</div>
-${orientHTML ? `<div class="orientation-row">${orientHTML}</div>` : ''}
-</div>
-${fHTML}
-</div>`;
-}).join('');
-}
-
-function toggleExpand(id, di) { expandedDay[id] = expandedDay[id] === di ? null : di; renderCards(); }
-
-function getBestScore(id) {
-const fc = forecastCache[id]; if (!fc?.daily) return -1;
-return Math.max(...fc.daily.time.map((_,i) => computeScore(extractDay(fc,i))));
+          expHTML=`<div class="day-expand">
+            <div class="expand-header">${dl}</div>
+            <div class="expand-grid">
+              <div class="expand-item"><span class="expand-label">Temperature</span><span class="expand-val">${dd.temperature_2m_min!=null?Math.round(dd.temperature_2m_min):'?'}° / ${dd.temperature_2m_max!=null?Math.round(dd.temperature_2m_max):'?'}°</span></div>
+              <div class="expand-item"><span class="expand-label">Rain</span><span class="expand-val ${rc}">${p.toFixed(1)} mm · ${pp}%</span></div>
+              <div class="expand-item"><span class="expand-label">Wind</span><span class="expand-val ${wc}">${Math.round(w)} km/h</span></div>
+              <div class="expand-item"><span class="expand-label">Gusts</span><span class="expand-val ${wc}">${Math.round(g)} km/h</span></div>
+              <div class="expand-item"><span class="expand-label">Sunshine</span><span class="expand-val">${sh} h</span></div>
+              <div class="expand-item"><span class="expand-label">UV index</span><span class="expand-val">${uv}</span></div>
+            </div>
+            ${modelHTML}
+          </div>`;
+        }
+        fHTML=`<div class="forecast-area"><div class="forecast-scroll">${cells}</div>${expHTML}</div>`;
+      }
+    }
+    return`<div class="crag-card" style="animation-delay:${ci*.1}s">
+      <div class="card-top"><div class="card-top-row"><div class="crag-name">${c.name}</div><div class="card-actions"><button class="card-action-btn" onclick="editCrag('${c.id}')">✎</button><button class="card-action-btn" onclick="removeCrag('${c.id}')">✕</button></div></div>
+      <div class="crag-detail-row"><span class="crag-detail">${c.region||''}</span><span class="crag-detail">${c.alt||'—'}m</span><span class="crag-detail">${c.rock||''}</span></div>
+      ${orientHTML?`<div class="orientation-row">${orientHTML}</div>`:''}</div>${fHTML}</div>`;
+  }).join('');
 }
 
-async function fetchAllForecasts() {
-setStatus('loading','updating…');
-let err = false;
-await Promise.all(crags.map(async c => {
-try { forecastCache[c.id] = await fetchForecast(c); }
-catch(e) { forecastCache[c.id] = { error: e.message }; err = true; }
-renderCards();
-}));
-if (err) setStatus('error','connection issue');
-else { const t = new Date(); setStatus('ok', `updated ${t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})}`); }
+// ─── RENDER EXPLORE ───
+function renderExplore(){
+  const grid=document.getElementById('exploreGrid');
+  const sel=document.getElementById('exploreDaySelect');
+
+  // Build day options dynamically from first loaded region
+  const anyRegion=Object.values(regionCache).find(r=>r&&!r.error&&(r.best||r.ecmwf));
+  if(anyRegion&&sel.options.length<=1){
+    const src=anyRegion.best||anyRegion.ecmwf;
+    if(src?.daily?.time){
+      sel.innerHTML='<option value="best">best day (7-day)</option>';
+      src.daily.time.forEach((t,i)=>{
+        const dt=new Date(t+'T00:00:00');
+        sel.innerHTML+=`<option value="${i}">${dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</option>`;
+      });
+    }
+  }
+
+  const mode=sel.value;
+
+  // Build ranked data
+  let ranked=REGIONS.map(r=>{
+    const fc=regionCache[r.id];
+    if(!fc||fc.error||(!fc.best&&!fc.ecmwf))return{...r,scores:[],bestScore:0,bestDay:'—',avgConf:'',error:fc?.error};
+    const src=fc.best||fc.ecmwf;
+    const days=src.daily.time.length;
+    const scores=[];
+    for(let i=0;i<days;i++){scores.push(blendedScore(fc,i))}
+
+    let sortScore;
+    if(mode==='best'){sortScore=Math.max(...scores.map(s=>s.score))}
+    else{const di=parseInt(mode);sortScore=scores[di]?scores[di].score:0}
+
+    const bestIdx=scores.reduce((bi,s,i)=>s.score>scores[bi].score?i:bi,0);
+    const bestDt=new Date(src.daily.time[bestIdx]+'T00:00:00');
+    const hasLow=scores.some(s=>s.confidence==='low');
+    const hasMed=scores.some(s=>s.confidence==='medium');
+
+    return{...r,scores,sortScore,bestScore:scores[bestIdx].score,bestDay:bestDt.toLocaleDateString('en-US',{weekday:'short',day:'numeric'}),avgConf:hasLow?'some disagreement':hasMed?'mostly aligned':'models agree'};
+  });
+
+  ranked.sort((a,b)=>(b.sortScore||0)-(a.sortScore||0));
+
+  grid.innerHTML=ranked.map((r,ri)=>{
+    if(r.error)return`<div class="region-card" style="animation-delay:${ri*.08}s"><div class="region-header"><span class="region-rank">${ri+1}</span><span class="region-name">${r.name}</span></div><div class="forecast-error">${r.error}</div></div>`;
+    if(!r.scores.length)return`<div class="region-card" style="animation-delay:${ri*.08}s"><div class="region-header"><span class="region-rank">${ri+1}</span><span class="region-name">${r.name}</span></div><div style="padding:8px 0;font-size:.8rem;color:var(--ink-faint)">Loading…</div></div>`;
+
+    const pips=r.scores.map(s=>`<div class="region-day-pip" style="background:${scoreColorHex(s.score)}"></div>`).join('');
+    const labels=r.scores.length?`<span>${new Date((regionCache[r.id].best||regionCache[r.id].ecmwf).daily.time[0]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'})}</span><span>${new Date((regionCache[r.id].best||regionCache[r.id].ecmwf).daily.time[r.scores.length-1]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'})}</span>`:'';
+
+    return`<div class="region-card" style="animation-delay:${ri*.08}s">
+      <div class="region-header">
+        <span class="region-rank">${ri+1}</span>
+        <span class="region-name">${r.name}</span>
+        <div class="region-best"><div class="region-best-score" style="color:${scoreColorHex(r.bestScore)}">${r.bestScore}</div><div class="region-best-label">best · ${r.bestDay}</div></div>
+      </div>
+      <div class="region-meta">${r.sub} · ${r.alt}m</div>
+      <div class="region-days">${pips}</div>
+      <div class="region-day-label">${labels}</div>
+      <div class="region-confidence">${r.avgConf}</div>
+    </div>`;
+  }).join('');
 }
 
-function refreshAll() { forecastCache = {}; expandedDay = {}; renderCards(); fetchAllForecasts(); }
-function setStatus(s, t) { const d = document.getElementById('statusDot'), x = document.getElementById('statusText'); d.className = 'status-dot'; if (s==='loading') d.classList.add('loading'); if (s==='error') d.classList.add('error'); x.textContent = t; }
-function setSort(b) { document.querySelectorAll('.sort-btn').forEach(p => p.classList.remove('active')); b.classList.add('active'); currentSort = b.dataset.sort; renderCards(); }
+function toggleExpand(id,di){expandedDay[id]=expandedDay[id]===di?null:di;renderCards()}
+function getBestBlended(id){const fc=forecastCache[id];if(!fc||fc.error)return-1;const src=fc.best||fc.ecmwf;if(!src?.daily)return-1;return Math.max(...src.daily.time.map((_,i)=>blendedScore(fc,i).score))}
 
-let selectedOrientations = [];
-function buildOrientationButtons() {
-document.getElementById('orientationBtns').innerHTML = ORIENTATIONS.map(o =>
-`<button type="button" class="orient-btn ${selectedOrientations.includes(o)?'active':''}" onclick="toggleOrientation('${o}',this)">${o}</button>`
-).join('');
-}
-function toggleOrientation(o, b) { const i = selectedOrientations.indexOf(o); if (i>=0) { selectedOrientations.splice(i,1); b.classList.remove('active'); } else { selectedOrientations.push(o); b.classList.add('active'); } }
-
-function openModal(id) {
-editingId = id||null; selectedOrientations = [];
-if (editingId) {
-const c = crags.find(x=>x.id===editingId); if (!c) return;
-document.getElementById('modalTitle').textContent = 'Edit crag';
-document.getElementById('inputName').value = c.name;
-document.getElementById('inputRegion').value = c.region||'';
-document.getElementById('inputLat').value = c.lat;
-document.getElementById('inputLon').value = c.lon;
-document.getElementById('inputAlt').value = c.alt||'';
-document.getElementById('inputRock').value = c.rock||'';
-selectedOrientations = [...(c.orientation||[])];
-} else {
-document.getElementById('modalTitle').textContent = 'Add a crag';
-['inputName','inputRegion','inputLat','inputLon','inputAlt','inputRock'].forEach(id => document.getElementById(id).value = '');
-}
-buildOrientationButtons();
-document.getElementById('modalOverlay').classList.add('open');
-setTimeout(() => document.getElementById('inputName').focus(), 100);
-}
-function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); editingId = null; }
-function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
-
-async function saveCrag() {
-const name = document.getElementById('inputName').value.trim();
-const region = document.getElementById('inputRegion').value.trim();
-const lat = parseFloat(document.getElementById('inputLat').value);
-const lon = parseFloat(document.getElementById('inputLon').value);
-const alt = parseInt(document.getElementById('inputAlt').value)||null;
-const rock = document.getElementById('inputRock').value.trim();
-if (!name || isNaN(lat) || isNaN(lon)) { alert('Name, latitude, and longitude are required.'); return; }
-if (editingId) { const i = crags.findIndex(c=>c.id===editingId); if (i>=0) { crags[i] = {...crags[i], name, region, lat, lon, alt, rock, orientation:[...selectedOrientations]}; delete forecastCache[editingId]; } }
-else { crags.push({ id: name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Date.now(), name, region, lat, lon, alt, rock, orientation:[...selectedOrientations] }); }
-saveCragsToStorage(); closeModal(); renderCards(); fetchAllForecasts();
-}
-function editCrag(id) { openModal(id); }
-function removeCrag(id) { const c = crags.find(x=>x.id===id); if (!c||!confirm(`Remove ${c.name}?`)) return; crags = crags.filter(x=>x.id!==id); delete forecastCache[id]; saveCragsToStorage(); renderCards(); }
-
-function init() {
-loadCrags(); renderCards();
-const sb = (window.self !== window.top) || (window.location.protocol === 'blob:');
-if (sb) {
-const b = document.createElement('div'); b.className = 'sandbox-banner';
-b.textContent = 'Preview mode — download and open in your browser for live weather data.';
-document.querySelector('main').prepend(b);
-setStatus('error','preview only'); return;
-}
-fetchAllForecasts(); setInterval(()=>fetchAllForecasts(), 30*60*1000);
+// ─── FETCH ───
+async function fetchAllForecasts(){
+  setStatus('loading','updating crags…');let err=false;
+  await Promise.all(crags.map(async c=>{
+    try{forecastCache[c.id]=await fetchDual(c.lat,c.lon)}
+    catch(e){forecastCache[c.id]={error:e.message};err=true}
+    renderCards();
+  }));
+  if(err)setStatus('error','connection issue');
+  else{const t=new Date();setStatus('ok',`updated ${t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})}`)}
 }
 
-document.addEventListener('DOMContentLoaded', init);
-document.addEventListener('keydown', e => { if (e.key==='Escape') closeModal(); });
+async function fetchAllRegions(){
+  setStatus('loading','updating regions…');let err=false;
+  await Promise.all(REGIONS.map(async r=>{
+    try{regionCache[r.id]=await fetchDual(r.lat,r.lon)}
+    catch(e){regionCache[r.id]={error:e.message};err=true}
+    renderExplore();
+  }));
+  if(!err){const t=new Date();setStatus('ok',`updated ${t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})}`)}
+}
+
+function refreshAll(){forecastCache={};regionCache={};expandedDay={};renderCards();renderExplore();fetchAllForecasts().then(()=>fetchAllRegions())}
+function setStatus(s,t){const d=document.getElementById('statusDot'),x=document.getElementById('statusText');d.className='status-dot';if(s==='loading')d.classList.add('loading');if(s==='error')d.classList.add('error');x.textContent=t}
+
+// ─── TABS ───
+function switchTab(name,btn){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pane-'+name).classList.add('active');
+  if(name==='explore'&&!Object.keys(regionCache).length)fetchAllRegions();
+}
+
+// ─── SORT ───
+function setSort(b){document.querySelectorAll('.sort-btn').forEach(p=>p.classList.remove('active'));b.classList.add('active');currentSort=b.dataset.sort;renderCards()}
+
+// ─── MODAL ───
+let selectedOrientations=[];
+function buildOrientationButtons(){document.getElementById('orientationBtns').innerHTML=ORIENTATIONS.map(o=>`<button type="button" class="orient-btn ${selectedOrientations.includes(o)?'active':''}" onclick="toggleOrientation('${o}',this)">${o}</button>`).join('')}
+function toggleOrientation(o,b){const i=selectedOrientations.indexOf(o);if(i>=0){selectedOrientations.splice(i,1);b.classList.remove('active')}else{selectedOrientations.push(o);b.classList.add('active')}}
+function openModal(id){
+  editingId=id||null;selectedOrientations=[];
+  if(editingId){const c=crags.find(x=>x.id===editingId);if(!c)return;document.getElementById('modalTitle').textContent='Edit crag';document.getElementById('inputName').value=c.name;document.getElementById('inputRegion').value=c.region||'';document.getElementById('inputLat').value=c.lat;document.getElementById('inputLon').value=c.lon;document.getElementById('inputAlt').value=c.alt||'';document.getElementById('inputRock').value=c.rock||'';selectedOrientations=[...(c.orientation||[])]}
+  else{document.getElementById('modalTitle').textContent='Add a crag';['inputName','inputRegion','inputLat','inputLon','inputAlt','inputRock'].forEach(id=>document.getElementById(id).value='')}
+  buildOrientationButtons();document.getElementById('modalOverlay').classList.add('open');setTimeout(()=>document.getElementById('inputName').focus(),100)
+}
+function closeModal(){document.getElementById('modalOverlay').classList.remove('open');editingId=null}
+function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal()}
+async function saveCrag(){
+  const name=document.getElementById('inputName').value.trim(),region=document.getElementById('inputRegion').value.trim(),lat=parseFloat(document.getElementById('inputLat').value),lon=parseFloat(document.getElementById('inputLon').value),alt=parseInt(document.getElementById('inputAlt').value)||null,rock=document.getElementById('inputRock').value.trim();
+  if(!name||isNaN(lat)||isNaN(lon)){alert('Name, latitude, and longitude are required.');return}
+  if(editingId){const i=crags.findIndex(c=>c.id===editingId);if(i>=0){crags[i]={...crags[i],name,region,lat,lon,alt,rock,orientation:[...selectedOrientations]};delete forecastCache[editingId]}}
+  else{crags.push({id:name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Date.now(),name,region,lat,lon,alt,rock,orientation:[...selectedOrientations]})}
+  saveCragsToStorage();closeModal();renderCards();fetchAllForecasts()
+}
+function editCrag(id){openModal(id)}
+function removeCrag(id){const c=crags.find(x=>x.id===id);if(!c||!confirm(`Remove ${c.name}?`))return;crags=crags.filter(x=>x.id!==id);delete forecastCache[id];saveCragsToStorage();renderCards()}
+
+// ─── INIT ───
+function init(){
+  loadCrags();renderCards();renderExplore();
+  const sb=(window.self!==window.top)||(window.location.protocol==='blob:');
+  if(sb){const b=document.createElement('div');b.className='sandbox-banner';b.textContent='Preview mode — download and open in your browser for live weather data.';document.querySelector('main').prepend(b);setStatus('error','preview only');return}
+  fetchAllForecasts();setInterval(()=>{fetchAllForecasts();if(document.getElementById('pane-explore').classList.contains('active'))fetchAllRegions()},30*60*1000);
+}
+document.addEventListener('DOMContentLoaded',init);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
 </script>
 
 </body>
