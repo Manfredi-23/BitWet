@@ -258,6 +258,10 @@ header{padding:20px 18px 16px}main{padding:12px 18px 48px}.card-top{padding:16px
       <div class="orient-grid" id="orientationBtns"></div>
       <p class="field-hint">Which directions catch sun</p>
     </div>
+    <div class="field">
+      <label>Notes</label>
+      <textarea id="inputNotes" placeholder="Approach info, parking, best sectors…" style="width:100%;background:#fff;border:1px solid var(--card-border);color:var(--ink);font-family:'Source Sans 3',sans-serif;font-size:.9rem;padding:10px 14px;border-radius:var(--radius-sm);outline:none;resize:vertical;min-height:60px;transition:border-color var(--transition)" onfocus="this.style.borderColor='var(--moss)'" onblur="this.style.borderColor='var(--card-border)'"></textarea>
+    </div>
     <div class="modal-btns">
       <button class="btn-secondary" onclick="closeModal()">Cancel</button>
       <button class="btn-primary" onclick="saveCrag()">Save</button>
@@ -266,13 +270,13 @@ header{padding:20px 18px 16px}main{padding:12px 18px 48px}.card-top{padding:16px
 </div>
 
 <script>
-const STORAGE_KEY='cragMeteo_v4';
+const STORAGE_KEY='cragMeteo_v5';
 const ORIENTATIONS=['N','NE','E','SE','S','SW','W','NW'];
 const DAILY_VARS='temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunshine_duration,uv_index_max';
 
 const DEFAULT_CRAGS=[
-  {id:'sobrio',name:'Sobrio',region:'Ticino',lat:46.480,lon:8.920,alt:950,orientation:['S','SE','SW'],rock:'Gneiss'},
-  {id:'sunneplaettli',name:'Sunneplättli',region:'Schwyz (Gersau)',lat:46.994,lon:8.524,alt:650,orientation:['S','SW'],rock:'Limestone'}
+  {id:'sobrio',name:'Sobrio',region:'Ticino',lat:46.480,lon:8.920,alt:950,orientation:['S','SE','SW'],rock:'Gneiss',notes:'Small mountain roads to parking. 10 min hike down to crag. Great 6b–7a range.'},
+  {id:'sunneplaettli',name:'Sunneplättli',region:'Schwyz (Gersau)',lat:46.994,lon:8.524,alt:650,orientation:['S','SW'],rock:'Limestone',notes:'Above Vierwaldstättersee. Can be crowded on weekends. Climbable in winter on sunny days.'}
 ];
 
 // 8 Swiss climbing regions with representative coordinates
@@ -313,25 +317,49 @@ async function fetchDual(lat,lon){
   }
 }
 
-// ─── SCORE ───
-function computeScore(d){
+// ─── SCORE (season-aware) ───
+function getSeasonProfile(dateStr){
+  const m=dateStr?new Date(dateStr+'T00:00:00').getMonth():new Date().getMonth();
+  // Dec-Feb: winter, Mar-May: spring, Jun-Aug: summer, Sep-Nov: autumn
+  if(m>=11||m<=1)return{idealMin:4,idealMax:16,label:'winter'};
+  if(m>=2&&m<=4)return{idealMin:8,idealMax:22,label:'spring'};
+  if(m>=5&&m<=7)return{idealMin:14,idealMax:28,label:'summer'};
+  return{idealMin:10,idealMax:24,label:'autumn'};
+}
+
+function computeScore(d,dateStr){
   let s=100;const p=d.precipitation_sum||0,pp=d.precipitation_probability_max||0;
   if(p>5)s-=60;else if(p>2)s-=40;else if(p>.5)s-=20;else if(p>0)s-=8;
   s-=(pp/100)*15;
   const w=d.wind_speed_10m_max||0,g=d.wind_gusts_10m_max||0;
   if(g>60)s-=35;else if(g>40)s-=20;else if(w>30)s-=15;else if(w>20)s-=5;
+
+  // Season-aware temperature scoring
+  const season=getSeasonProfile(dateStr);
   const t=d.temperature_2m_max;
-  if(t!==undefined){if(t<2)s-=30;else if(t<6)s-=18;else if(t<10)s-=8;else if(t>35)s-=25;else if(t>30)s-=12}
+  if(t!==undefined){
+    if(t<season.idealMin-10)s-=30;
+    else if(t<season.idealMin-5)s-=18;
+    else if(t<season.idealMin)s-=8;
+    else if(t>season.idealMax+8)s-=25;
+    else if(t>season.idealMax+3)s-=12;
+    else if(t>season.idealMax)s-=4;
+    // Bonus for being in the sweet spot
+    else if(t>=season.idealMin&&t<=season.idealMax)s+=3;
+  }
+
   const wc=d.weather_code||0;
   if(wc>=95)s-=30;else if(wc>=71)s-=25;else if(wc>=61)s-=20;else if(wc>=51)s-=10;else if(wc>=45)s-=8;
   return Math.max(0,Math.min(100,Math.round(s)));
 }
 
 function blendedScore(fc,di){
+  const src=fc.best||fc.ecmwf;
+  const dateStr=src?.daily?.time?.[di]||null;
   const bestDay=fc.best?extractDay(fc.best,di):null;
   const ecmwfDay=fc.ecmwf?extractDay(fc.ecmwf,di):null;
-  const sBest=bestDay?computeScore(bestDay):null;
-  const sECMWF=ecmwfDay?computeScore(ecmwfDay):null;
+  const sBest=bestDay?computeScore(bestDay,dateStr):null;
+  const sECMWF=ecmwfDay?computeScore(ecmwfDay,dateStr):null;
   if(sBest!==null&&sECMWF!==null){
     const avg=Math.round((sBest+sECMWF)/2);
     const diff=Math.abs(sBest-sECMWF);
@@ -402,9 +430,10 @@ function renderCards(){
           let modelHTML='';
           if(fc.best&&fc.ecmwf){
             const db=extractDay(fc.best,expIdx),de=extractDay(fc.ecmwf,expIdx);
+            const expDateStr=src.daily.time[expIdx];
             modelHTML=`<div class="model-compare">
-              <div class="model-col"><strong>Best-match (local)</strong>Rain: ${(db.precipitation_sum||0).toFixed(1)}mm · ${db.precipitation_probability_max||0}%<br>Wind: ${Math.round(db.wind_speed_10m_max||0)} km/h<br>Score: ${computeScore(db)}</div>
-              <div class="model-col"><strong>ECMWF IFS</strong>Rain: ${(de.precipitation_sum||0).toFixed(1)}mm · ${de.precipitation_probability_max||0}%<br>Wind: ${Math.round(de.wind_speed_10m_max||0)} km/h<br>Score: ${computeScore(de)}</div>
+              <div class="model-col"><strong>Best-match (local)</strong>Rain: ${(db.precipitation_sum||0).toFixed(1)}mm · ${db.precipitation_probability_max||0}%<br>Wind: ${Math.round(db.wind_speed_10m_max||0)} km/h<br>Score: ${computeScore(db,expDateStr)}</div>
+              <div class="model-col"><strong>ECMWF IFS</strong>Rain: ${(de.precipitation_sum||0).toFixed(1)}mm · ${de.precipitation_probability_max||0}%<br>Wind: ${Math.round(de.wind_speed_10m_max||0)} km/h<br>Score: ${computeScore(de,expDateStr)}</div>
             </div>`;
           }
 
@@ -427,7 +456,8 @@ function renderCards(){
     return`<div class="crag-card" style="animation-delay:${ci*.1}s">
       <div class="card-top"><div class="card-top-row"><div class="crag-name">${c.name}</div><div class="card-actions"><button class="card-action-btn" onclick="editCrag('${c.id}')">✎</button><button class="card-action-btn" onclick="removeCrag('${c.id}')">✕</button></div></div>
       <div class="crag-detail-row"><span class="crag-detail">${c.region||''}</span><span class="crag-detail">${c.alt||'—'}m</span><span class="crag-detail">${c.rock||''}</span></div>
-      ${orientHTML?`<div class="orientation-row">${orientHTML}</div>`:''}</div>${fHTML}</div>`;
+      ${orientHTML?`<div class="orientation-row">${orientHTML}</div>`:''}
+      ${c.notes?`<div style="font-size:.75rem;color:var(--ink-faint);margin-top:8px;line-height:1.5;font-style:italic">${c.notes}</div>`:''}</div>${fHTML}</div>`;
   }).join('');
 }
 
@@ -541,17 +571,17 @@ function buildOrientationButtons(){document.getElementById('orientationBtns').in
 function toggleOrientation(o,b){const i=selectedOrientations.indexOf(o);if(i>=0){selectedOrientations.splice(i,1);b.classList.remove('active')}else{selectedOrientations.push(o);b.classList.add('active')}}
 function openModal(id){
   editingId=id||null;selectedOrientations=[];
-  if(editingId){const c=crags.find(x=>x.id===editingId);if(!c)return;document.getElementById('modalTitle').textContent='Edit crag';document.getElementById('inputName').value=c.name;document.getElementById('inputRegion').value=c.region||'';document.getElementById('inputLat').value=c.lat;document.getElementById('inputLon').value=c.lon;document.getElementById('inputAlt').value=c.alt||'';document.getElementById('inputRock').value=c.rock||'';selectedOrientations=[...(c.orientation||[])]}
-  else{document.getElementById('modalTitle').textContent='Add a crag';['inputName','inputRegion','inputLat','inputLon','inputAlt','inputRock'].forEach(id=>document.getElementById(id).value='')}
+  if(editingId){const c=crags.find(x=>x.id===editingId);if(!c)return;document.getElementById('modalTitle').textContent='Edit crag';document.getElementById('inputName').value=c.name;document.getElementById('inputRegion').value=c.region||'';document.getElementById('inputLat').value=c.lat;document.getElementById('inputLon').value=c.lon;document.getElementById('inputAlt').value=c.alt||'';document.getElementById('inputRock').value=c.rock||'';document.getElementById('inputNotes').value=c.notes||'';selectedOrientations=[...(c.orientation||[])]}
+  else{document.getElementById('modalTitle').textContent='Add a crag';['inputName','inputRegion','inputLat','inputLon','inputAlt','inputRock'].forEach(id=>document.getElementById(id).value='');document.getElementById('inputNotes').value=''}
   buildOrientationButtons();document.getElementById('modalOverlay').classList.add('open');setTimeout(()=>document.getElementById('inputName').focus(),100)
 }
 function closeModal(){document.getElementById('modalOverlay').classList.remove('open');editingId=null}
 function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal()}
 async function saveCrag(){
-  const name=document.getElementById('inputName').value.trim(),region=document.getElementById('inputRegion').value.trim(),lat=parseFloat(document.getElementById('inputLat').value),lon=parseFloat(document.getElementById('inputLon').value),alt=parseInt(document.getElementById('inputAlt').value)||null,rock=document.getElementById('inputRock').value.trim();
+  const name=document.getElementById('inputName').value.trim(),region=document.getElementById('inputRegion').value.trim(),lat=parseFloat(document.getElementById('inputLat').value),lon=parseFloat(document.getElementById('inputLon').value),alt=parseInt(document.getElementById('inputAlt').value)||null,rock=document.getElementById('inputRock').value.trim(),notes=document.getElementById('inputNotes').value.trim();
   if(!name||isNaN(lat)||isNaN(lon)){alert('Name, latitude, and longitude are required.');return}
-  if(editingId){const i=crags.findIndex(c=>c.id===editingId);if(i>=0){crags[i]={...crags[i],name,region,lat,lon,alt,rock,orientation:[...selectedOrientations]};delete forecastCache[editingId]}}
-  else{crags.push({id:name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Date.now(),name,region,lat,lon,alt,rock,orientation:[...selectedOrientations]})}
+  if(editingId){const i=crags.findIndex(c=>c.id===editingId);if(i>=0){crags[i]={...crags[i],name,region,lat,lon,alt,rock,notes,orientation:[...selectedOrientations]};delete forecastCache[editingId]}}
+  else{crags.push({id:name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Date.now(),name,region,lat,lon,alt,rock,notes,orientation:[...selectedOrientations]})}
   saveCragsToStorage();closeModal();renderCards();fetchAllForecasts()
 }
 function editCrag(id){openModal(id)}
