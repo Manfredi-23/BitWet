@@ -1,560 +1,101 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BitWet</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-<style>
-  /* Roc Grotesk via self-hosted fallback — using a chunky geometric sans as substitute */
-  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
-:root {
-–bg: #FDF5ED;
-–card: #FFFFFF;
-–card-border: #E8DFD4;
-–card-shadow: rgba(80,60,40,0.08);
-–ink: #1A1815;
-–ink-soft: #4A4540;
-–ink-faint: #8A8278;
-–ink-ghost: #C4BBB0;
-–coral: #E8725A;
-–coral-soft: #E8725A22;
-–coral-hover: #D4634D;
-–green: #5BAD6A;
-–green-light: #7EC98A;
-–yellow: #D4A843;
-–orange: #D4834A;
-–grey-score: #9A9490;
-–red: #CC5555;
-–mono: ‘Space Mono’, monospace;
-–sans: ‘Plus Jakarta Sans’, ‘Roc Grotesk’, system-ui, sans-serif;
-–radius: 12px;
-–radius-sm: 6px;
-–t: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-- { margin:0; padding:0; box-sizing:border-box; }
-  html { font-size:16px; -webkit-font-smoothing:antialiased; }
-  body { background:var(–bg); color:var(–ink); font-family:var(–sans); min-height:100vh; }
-
-/* ═══ HEADER ═══ */
-.header { text-align:center; padding:36px 24px 0; max-width:600px; margin:0 auto; }
-.logo {
-font-family:var(–sans); font-weight:800; font-size:3rem; color:var(–coral);
-letter-spacing:-0.02em; line-height:1;
-animation: logoIn 0.6s ease-out both;
-}
-@keyframes logoIn { from { opacity:0; transform:translateY(-10px) scale(0.95); } to { opacity:1; transform:translateY(0) scale(1); } }
-.header-meta {
-display:flex; justify-content:space-between; align-items:center;
-margin-top:10px; font-family:var(–mono); font-size:0.7rem; color:var(–ink-faint);
-}
-.refresh-btn {
-background:none; border:none; color:var(–ink-faint); font-family:var(–mono);
-font-size:0.7rem; cursor:pointer; display:flex; align-items:center; gap:5px;
-transition: color var(–t);
-}
-.refresh-btn:hover { color:var(–coral); }
-.refresh-btn svg { transition: transform 0.4s ease; }
-.refresh-btn:active svg { transform: rotate(360deg); }
-.status-dot { width:6px; height:6px; border-radius:50%; background:var(–green); display:inline-block; margin-right:4px; }
-.status-dot.loading { background:var(–yellow); animation:pulse 1s infinite; }
-.status-dot.error { background:var(–red); }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-/* ═══ NAV ═══ */
-.nav { display:flex; justify-content:center; gap:24px; padding:20px 24px 8px; max-width:600px; margin:0 auto; }
-.nav-btn {
-background:none; border:none; font-family:var(–sans); font-size:0.85rem; font-weight:500;
-color:var(–ink-faint); cursor:pointer; display:flex; align-items:center; gap:6px;
-padding:8px 4px; position:relative; transition: color var(–t);
-}
-.nav-btn::after {
-content:’’; position:absolute; bottom:0; left:0; right:0; height:2px;
-background:var(–coral); transform:scaleX(0); transition: transform 0.3s ease;
-border-radius:1px;
-}
-.nav-btn.active { color:var(–ink); }
-.nav-btn.active::after { transform:scaleX(1); }
-.nav-btn:hover { color:var(–ink-soft); }
-.nav-icon { font-size:1rem; }
-
-/* ═══ SORT ═══ */
-.sort-bar { display:flex; justify-content:center; gap:16px; padding:12px 24px 20px; max-width:600px; margin:0 auto; }
-.sort-btn {
-background:none; border:none; font-family:var(–sans); font-size:0.8rem; font-weight:600;
-color:var(–ink-ghost); cursor:pointer; text-transform:uppercase; letter-spacing:0.06em;
-padding:4px 0; transition: color var(–t); position:relative;
-}
-.sort-btn.active { color:var(–ink); }
-.sort-btn:hover { color:var(–ink-soft); }
-
-/* ═══ MAIN ═══ */
-main { max-width:600px; margin:0 auto; padding:0 16px 60px; }
-.tab-pane { display:none; } .tab-pane.active { display:block; }
-
-/* ═══ CRAG CARD ═══ */
-.crag-card {
-background:var(–card); border:1px solid var(–card-border); border-radius:var(–radius);
-margin-bottom:20px; overflow:hidden;
-box-shadow:0 1px 4px var(–card-shadow);
-animation: cardIn 0.5s ease-out both;
-transition: box-shadow 0.3s, transform 0.3s;
-}
-.crag-card:hover { box-shadow:0 4px 20px var(–card-shadow); transform:translateY(-1px); }
-@keyframes cardIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
-
-/* Card header: name + meta pipe row */
-.card-head { padding:20px 20px 0; }
-.card-head-row { display:flex; align-items:flex-start; justify-content:space-between; }
-.crag-name { font-family:var(–sans); font-size:1.25rem; font-weight:800; color:var(–ink); text-transform:uppercase; letter-spacing:0.01em; }
-.card-actions { display:flex; gap:2px; }
-.card-act { background:none; border:none; color:var(–ink-ghost); cursor:pointer; font-size:0.8rem; padding:4px 6px; border-radius:4px; transition:all var(–t); }
-.card-act:hover { color:var(–coral); background:var(–coral-soft); }
-
-.meta-pipe {
-display:flex; align-items:center; gap:0; margin-top:8px; font-family:var(–mono);
-font-size:0.65rem; color:var(–ink-faint); flex-wrap:wrap;
-}
-.meta-pipe span { padding:0 10px; border-left:1px solid var(–card-border); white-space:nowrap; }
-.meta-pipe span:first-child { padding-left:0; border-left:none; }
-
-/* Notes */
-.card-notes {
-padding:12px 20px 0; font-family:var(–mono); font-size:0.68rem; color:var(–ink-faint);
-line-height:1.6; letter-spacing:0.01em;
-}
-
-/* ═══ FORECAST ═══ */
-.forecast-area { margin-top:16px; border-top:1px solid var(–card-border); }
-.forecast-grid {
-display:grid; grid-template-columns:repeat(auto-fit, minmax(80px, 1fr));
-overflow-x:auto; scrollbar-width:none;
-}
-.forecast-grid::-webkit-scrollbar { display:none; }
-
-.fday {
-padding:16px 8px 14px; text-align:center; cursor:pointer;
-border-right:1px solid var(–card-border); position:relative;
-transition: background var(–t), opacity var(–t);
-}
-.fday:last-child { border-right:none; }
-.fday:hover { background:rgba(0,0,0,0.015); }
-.fday.active-day { background:rgba(232,114,90,0.04); }
-.fday.dimmed { opacity:0.45; }
-
-.fday-label { font-family:var(–sans); font-size:0.85rem; font-weight:700; color:var(–ink); text-transform:uppercase; }
-.fday-icon { margin:10px auto 6px; height:36px; display:flex; align-items:center; justify-content:center; }
-.fday-icon svg { width:36px; height:36px; stroke:var(–ink-soft); stroke-width:1.5; fill:none; }
-.fday-wx-label { font-family:var(–sans); font-size:0.7rem; color:var(–ink-soft); margin-bottom:2px; }
-.fday-temp { font-family:var(–mono); font-size:0.7rem; color:var(–ink-faint); margin-bottom:10px; }
-
-/* Score pill */
-.score-pill {
-display:flex; align-items:center; justify-content:center;
-height:26px; border-radius:13px; margin:0 4px;
-font-family:var(–sans); font-size:0.85rem; font-weight:700; color:#fff;
-position:relative; overflow:hidden;
-transition: transform 0.2s ease;
-}
-.fday:hover .score-pill { transform:scale(1.05); }
-.score-pill.s-great { background:var(–green); }
-.score-pill.s-good { background:var(–green-light); }
-.score-pill.s-ok { background:var(–yellow); }
-.score-pill.s-poor { background:var(–coral); }
-.score-pill.s-bad { background:var(–grey-score); }
-
-/* Confidence tag */
-.conf-tag { font-family:var(–mono); font-size:0.55rem; color:var(–ink-ghost); margin-top:4px; }
-
-/* ═══ EXPANDED DETAIL ═══ */
-.detail-panel {
-border-top:1px solid var(–card-border); padding:16px 20px 20px;
-background:var(–bg); animation:slideDown 0.3s ease-out;
-}
-@keyframes slideDown { from { opacity:0; max-height:0; } to { opacity:1; max-height:400px; } }
-.detail-date { font-family:var(–sans); font-size:0.85rem; font-weight:700; color:var(–ink); }
-.detail-score-label { font-family:var(–mono); font-size:0.7rem; color:var(–ink-faint); margin-left:8px; }
-.detail-grid {
-display:grid; grid-template-columns:repeat(3, 1fr); gap:10px 16px; margin-top:12px;
-border-top:1px solid var(–card-border); padding-top:12px;
-}
-@media(min-width:500px) { .detail-grid { grid-template-columns:repeat(6,1fr); } }
-.detail-item label { font-family:var(–mono); font-size:0.6rem; color:var(–ink-faint); text-transform:uppercase; letter-spacing:0.04em; display:block; }
-.detail-item span { font-family:var(–mono); font-size:0.8rem; font-weight:700; color:var(–ink); }
-.detail-item span.warn { color:var(–orange); } .detail-item span.bad { color:var(–red); } .detail-item span.rain { color:#5A8EC8; }
-
-/* Model compare */
-.model-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; padding-top:10px; border-top:1px solid var(–card-border); }
-.model-box { font-family:var(–mono); font-size:0.6rem; color:var(–ink-faint); line-height:1.6; }
-.model-box strong { font-weight:700; color:var(–ink-soft); text-transform:uppercase; letter-spacing:0.04em; display:block; margin-bottom:2px; }
-
-/* ═══ LOADING / ERROR ═══ */
-.forecast-loading { display:grid; grid-template-columns:repeat(4,1fr); }
-.day-skel { height:160px; border-right:1px solid var(–card-border); position:relative; overflow:hidden; }
-.day-skel:last-child { border-right:none; }
-.day-skel::after { content:’’; position:absolute; inset:0; background:linear-gradient(90deg,transparent,rgba(0,0,0,0.02),transparent); animation:shimmer 2s infinite; }
-@keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
-.forecast-error { padding:20px; text-align:center; font-family:var(–mono); font-size:0.7rem; color:var(–red); }
-.empty-state { text-align:center; padding:60px 20px; color:var(–ink-faint); font-size:0.9rem; }
-
-/* ═══ LEGEND ═══ */
-.legend { display:flex; gap:12px; flex-wrap:wrap; align-items:center; justify-content:center; margin-top:28px; }
-.legend-item { display:flex; align-items:center; gap:5px; font-family:var(–mono); font-size:0.6rem; color:var(–ink-faint); }
-.legend-pip { width:20px; height:8px; border-radius:4px; }
-
-/* ═══ EXPLORE ═══ */
-.explore-controls { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:20px; }
-.explore-sel { font-family:var(–mono); font-size:0.7rem; background:var(–card); color:var(–ink); border:1px solid var(–card-border); padding:6px 10px; border-radius:var(–radius-sm); }
-
-.region-card {
-background:var(–card); border:1px solid var(–card-border); border-radius:var(–radius);
-margin-bottom:16px; overflow:hidden; box-shadow:0 1px 4px var(–card-shadow);
-animation:cardIn 0.4s ease-out both; transition:box-shadow 0.3s;
-}
-.region-card:hover { box-shadow:0 4px 16px var(–card-shadow); }
-.region-toggle { cursor:pointer; padding:16px 20px; transition:background var(–t); }
-.region-toggle:hover { background:rgba(0,0,0,0.01); }
-.region-header { display:flex; align-items:center; gap:8px; }
-.region-rank { font-family:var(–mono); font-size:0.7rem; color:var(–ink-ghost); width:20px; }
-.region-name { font-family:var(–sans); font-size:1rem; font-weight:700; color:var(–ink); flex:1; }
-.region-best { text-align:right; }
-.region-best-score { font-family:var(–sans); font-size:1.1rem; font-weight:800; }
-.region-best-label { font-family:var(–mono); font-size:0.55rem; color:var(–ink-faint); }
-.region-meta { font-family:var(–mono); font-size:0.65rem; color:var(–ink-faint); margin:4px 0 10px 28px; }
-.region-pips { display:flex; gap:3px; margin-left:28px; }
-.region-pip { flex:1; height:8px; border-radius:4px; transition:all 0.4s ease; }
-.region-pip-labels { display:flex; justify-content:space-between; margin:3px 28px 0; font-family:var(–mono); font-size:0.5rem; color:var(–ink-ghost); }
-.region-conf { font-family:var(–mono); font-size:0.55rem; color:var(–ink-ghost); margin:6px 0 0 28px; }
-.region-hint { font-family:var(–mono); font-size:0.6rem; color:var(–ink-ghost); margin-top:8px; text-align:center; transition:color var(–t); }
-.region-toggle:hover .region-hint { color:var(–coral); }
-
-.region-crags { border-top:1px solid var(–card-border); padding:12px 20px 16px; animation:slideDown 0.3s ease-out; }
-.region-crags-loading { font-family:var(–mono); font-size:0.65rem; color:var(–ink-ghost); font-style:italic; padding:4px 0; }
-.rcrag { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(–card-border); transition: background var(–t); }
-.rcrag:last-child { border-bottom:none; }
-.rcrag:hover { background:rgba(0,0,0,0.01); }
-.rcrag-name { font-family:var(–sans); font-size:0.8rem; font-weight:600; color:var(–ink); }
-.rcrag-meta { font-family:var(–mono); font-size:0.55rem; color:var(–ink-faint); margin-top:1px; }
-.rcrag-score { text-align:right; min-width:44px; }
-.rcrag-score-num { font-family:var(–sans); font-size:0.9rem; font-weight:800; }
-.rcrag-score-day { font-family:var(–mono); font-size:0.5rem; color:var(–ink-ghost); }
-
-/* ═══ MODAL ═══ */
-.modal-overlay { display:none; position:fixed; inset:0; background:rgba(26,24,21,0.5); z-index:500; align-items:flex-end; justify-content:center; backdrop-filter:blur(8px); }
-.modal-overlay.open { display:flex; }
-.modal { background:var(–card); border-radius:var(–radius) var(–radius) 0 0; padding:28px 24px 36px; width:100%; max-width:500px; max-height:90vh; overflow-y:auto; animation:sheetUp 0.35s ease-out; }
-@keyframes sheetUp { from{transform:translateY(100%)} to{transform:translateY(0)} }
-@media(min-width:600px) { .modal-overlay{align-items:center} .modal{border-radius:var(–radius);max-height:85vh} @keyframes sheetUp{from{opacity:0;transform:translateY(20px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}} }
-.modal-handle { width:32px; height:3px; background:var(–ink-ghost); border-radius:2px; margin:0 auto 20px; }
-@media(min-width:600px) { .modal-handle{display:none} }
-.modal h2 { font-family:var(–sans); font-size:1.1rem; font-weight:700; color:var(–ink); margin-bottom:20px; }
-.field { margin-bottom:16px; }
-.field label { display:block; font-family:var(–mono); font-size:0.6rem; color:var(–ink-faint); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:5px; }
-.field input,.field textarea { width:100%; background:var(–bg); border:1px solid var(–card-border); color:var(–ink); font-family:var(–sans); font-size:0.9rem; padding:10px 14px; border-radius:var(–radius-sm); outline:none; transition:border-color var(–t); }
-.field input:focus,.field textarea:focus { border-color:var(–coral); }
-.field textarea { font-family:var(–mono); font-size:0.75rem; resize:vertical; min-height:56px; }
-.field-hint { font-family:var(–mono); font-size:0.6rem; color:var(–ink-ghost); margin-top:3px; }
-.orient-grid { display:flex; gap:5px; flex-wrap:wrap; }
-.orient-btn { font-family:var(–mono); font-size:0.65rem; padding:5px 10px; border:1px solid var(–card-border); background:var(–bg); color:var(–ink-faint); cursor:pointer; border-radius:4px; transition:all var(–t); }
-.orient-btn:hover { border-color:var(–ink-faint); }
-.orient-btn.active { background:var(–coral-soft); border-color:var(–coral); color:var(–coral); }
-.modal-btns { display:flex; gap:10px; margin-top:24px; }
-.modal-btns button { flex:1; padding:12px; font-family:var(–sans); font-size:0.85rem; font-weight:600; cursor:pointer; border-radius:var(–radius-sm); transition:all var(–t); }
-.btn-primary { background:var(–coral); color:#fff; border:none; }
-.btn-primary:hover { background:var(–coral-hover); }
-.btn-secondary { background:none; border:1px solid var(–card-border); color:var(–ink-faint); }
-.btn-secondary:hover { border-color:var(–ink-faint); }
-
-.sandbox-banner { background:var(–coral-soft); border:1px solid var(–coral); border-radius:var(–radius-sm); padding:12px 16px; margin-bottom:16px; font-family:var(–mono); font-size:0.7rem; color:var(–coral); line-height:1.5; }
-
-@media(max-width:400px) { .fday { min-width:75px; padding:12px 4px; } .detail-grid{grid-template-columns:repeat(3,1fr)} }
-</style>
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BitWet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<div class="header">
-  <div class="logo">BitWet</div>
-  <div class="header-meta">
-    <span><span class="status-dot" id="statusDot"></span><span id="statusText">loading</span></span>
-    <button class="refresh-btn" onclick="refreshAll()">refresh <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg></button>
-  </div>
-</div>
-
-<nav class="nav">
-  <button class="nav-btn active" onclick="switchTab('crags',this)"><span class="nav-icon">⊙</span> Usuals</button>
-  <button class="nav-btn" onclick="switchTab('explore',this)"><span class="nav-icon">◎</span> Explore</button>
-  <button class="nav-btn" onclick="openModal()"><span class="nav-icon">⊕</span> Add One</button>
-</nav>
-
-<main>
-  <div class="tab-pane active" id="pane-crags">
-    <div class="sort-bar">
-      <button class="sort-btn active" data-sort="score" onclick="setSort(this)">Best Today</button>
-      <button class="sort-btn" data-sort="name" onclick="setSort(this)">Name</button>
-      <button class="sort-btn" data-sort="region" onclick="setSort(this)">Region</button>
-    </div>
-    <div id="cragGrid"></div>
-    <div class="legend">
-      <div class="legend-item"><div class="legend-pip" style="background:var(--green)"></div>80+</div>
-      <div class="legend-item"><div class="legend-pip" style="background:var(--green-light)"></div>60–79</div>
-      <div class="legend-item"><div class="legend-pip" style="background:var(--yellow)"></div>40–59</div>
-      <div class="legend-item"><div class="legend-pip" style="background:var(--coral)"></div>20–39</div>
-      <div class="legend-item"><div class="legend-pip" style="background:var(--grey-score)"></div>0–19</div>
+  <!-- ═══ HEADER ═══ -->
+  <div class="header">
+    <div class="logo">BitWet</div>
+    <div class="header-meta">
+      <span><span class="status-dot" id="statusDot"></span><span id="statusText">loading</span></span>
+      <button class="refresh-btn" onclick="refreshAll()">
+        refresh <span class="refresh-icon"></span>
+      </button>
     </div>
   </div>
 
-  <div class="tab-pane" id="pane-explore">
-    <div class="explore-controls">
-      <select class="explore-sel" id="exploreDaySelect" onchange="renderExplore()"><option value="best">best day (7-day)</option></select>
+  <!-- ═══ NAV ═══ -->
+  <nav class="nav">
+    <button class="nav-btn active" onclick="switchTab('crags',this)"><span class="nav-icon" data-icon="usuals"></span> Usuals</button>
+    <button class="nav-btn" onclick="switchTab('explore',this)"><span class="nav-icon" data-icon="explore"></span> Explore</button>
+    <button class="nav-btn" onclick="openModal()"><span class="nav-icon" data-icon="addOne"></span> Add One</button>
+  </nav>
+
+  <!-- ═══ MAIN ═══ -->
+  <main>
+    <!-- Usuals tab -->
+    <div class="tab-pane active" id="pane-crags">
+      <div class="sort-bar">
+        <button class="sort-btn active" data-sort="score" onclick="setSort(this)">Best Today</button>
+        <button class="sort-btn" data-sort="name" onclick="setSort(this)">Name</button>
+        <button class="sort-btn" data-sort="region" onclick="setSort(this)">Region</button>
+      </div>
+      <div id="cragGrid"></div>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-pip" style="background:var(--green)"></div>80+</div>
+        <div class="legend-item"><div class="legend-pip" style="background:var(--green-light)"></div>60–79</div>
+        <div class="legend-item"><div class="legend-pip" style="background:var(--yellow)"></div>40–59</div>
+        <div class="legend-item"><div class="legend-pip" style="background:var(--coral)"></div>20–39</div>
+        <div class="legend-item"><div class="legend-pip" style="background:var(--grey-score)"></div>0–19</div>
+      </div>
     </div>
-    <div id="exploreGrid"></div>
+
+    <!-- Explore tab -->
+    <div class="tab-pane" id="pane-explore">
+      <div class="explore-controls">
+        <select class="explore-sel" id="exploreDaySelect" onchange="renderExplore()">
+          <option value="best">best day (7-day)</option>
+        </select>
+      </div>
+      <div id="exploreGrid"></div>
+    </div>
+  </main>
+
+  <!-- ═══ MODAL ═══ -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-handle"></div>
+      <h2 id="modalTitle">Add a crag</h2>
+
+      <div class="field"><label>Name</label><input type="text" id="inputName" placeholder="e.g. Sobrio"></div>
+      <div class="field"><label>Region</label><input type="text" id="inputRegion" placeholder="e.g. Ticino"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field"><label>Latitude</label><input type="number" step="any" id="inputLat" placeholder="46.480"></div>
+        <div class="field"><label>Longitude</label><input type="number" step="any" id="inputLon" placeholder="8.920"></div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="field"><label>Altitude (m)</label><input type="number" id="inputAlt" placeholder="950"></div>
+        <div class="field"><label>Rock type</label><input type="text" id="inputRock" placeholder="Gneiss"></div>
+      </div>
+
+      <div class="field">
+        <label>Wall orientation</label>
+        <div class="orient-grid" id="orientationBtns"></div>
+        <p class="field-hint">Which directions catch sun</p>
+      </div>
+
+      <div class="field"><label>Notes</label><textarea id="inputNotes" placeholder="Approach info, parking, best sectors…"></textarea></div>
+
+      <div class="modal-btns">
+        <button class="btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveCrag()">Save</button>
+      </div>
+    </div>
   </div>
-</main>
 
-<div class="modal-overlay" id="modalOverlay" onclick="closeModalOutside(event)">
-  <div class="modal" onclick="event.stopPropagation()">
-    <div class="modal-handle"></div>
-    <h2 id="modalTitle">Add a crag</h2>
-    <div class="field"><label>Name</label><input type="text" id="inputName" placeholder="e.g. Sobrio"></div>
-    <div class="field"><label>Region</label><input type="text" id="inputRegion" placeholder="e.g. Ticino"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="field"><label>Latitude</label><input type="number" step="any" id="inputLat" placeholder="46.480"></div>
-      <div class="field"><label>Longitude</label><input type="number" step="any" id="inputLon" placeholder="8.920"></div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="field"><label>Altitude (m)</label><input type="number" id="inputAlt" placeholder="950"></div>
-      <div class="field"><label>Rock type</label><input type="text" id="inputRock" placeholder="Gneiss"></div>
-    </div>
-    <div class="field"><label>Wall orientation</label><div class="orient-grid" id="orientationBtns"></div><p class="field-hint">Which directions catch sun</p></div>
-    <div class="field"><label>Notes</label><textarea id="inputNotes" placeholder="Approach info, parking, best sectors…"></textarea></div>
-    <div class="modal-btns"><button class="btn-secondary" onclick="closeModal()">Cancel</button><button class="btn-primary" onclick="saveCrag()">Save</button></div>
-  </div>
-</div>
-
-<script>
-const STORAGE_KEY='bitWet_v1';
-const ORIENTATIONS=['N','NE','E','SE','S','SW','W','NW'];
-const DAILY_VARS='temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunshine_duration,uv_index_max';
-
-const DEFAULT_CRAGS=[
-  {id:'sobrio',name:'Sobrio',region:'Ticino',lat:46.480,lon:8.920,alt:950,orientation:['S','SE','SW'],rock:'Gneiss',notes:'Small mountain roads to parking. 10 min hike down to crag. Great 6b–7a range.'},
-  {id:'sunneplaettli',name:'Sunneplättli',region:'Schwyz (Gersau)',lat:46.994,lon:8.524,alt:650,orientation:['S','SW'],rock:'Limestone',notes:'Above Vierwaldstättersee. Can be crowded on weekends. Climbable in winter on sunny days.'},
-  {id:'handegg',name:'Handegg',region:'Berner Oberland (Grimsel)',lat:46.717,lon:8.305,alt:1400,orientation:['S','SW'],rock:'Granite',notes:'Grimselpass area. Multi-pitch and single pitch on superb granite. Summer crag (snow until May).'},
-  {id:'schoellenen',name:'Schöllenen',region:'Uri (Göschenen)',lat:46.665,lon:8.588,alt:1000,orientation:['S','SE'],rock:'Granite',notes:'Dramatic gorge setting near Andermatt. Granite walls with routes 6a–7c. Summer best.'},
-  {id:'lehn',name:'Lehn',region:'Berner Oberland (Interlaken)',lat:46.688,lon:7.848,alt:800,orientation:['S','SW'],rock:'Limestone',notes:'One of Switzerland\'s most varied crags. Good 6b–7b selection. Can get busy.'},
-  {id:'salvan',name:'Salvan',region:'Wallis (Bas-Valais)',lat:46.120,lon:7.020,alt:900,orientation:['S','SE','SW'],rock:'Gneiss',notes:'120+ routes 5a–9a. Perfect gneiss, aesthetic lines. Nature campsite at Van d\'en Haut.'},
-  {id:'cadarese',name:'Cadarese',region:'Ossola Valley (IT border)',lat:46.280,lon:8.300,alt:700,orientation:['S','SW'],rock:'Granite',notes:'Just across the Italian border. World class granite crack climbing. Also sport routes 6a–8a. Quiet, raw setting.'},
-  {id:'felliberg',name:'Felliberg',region:'Uri (Amsteg)',lat:46.736,lon:8.641,alt:1200,orientation:['S','SE'],rock:'Granite',notes:'Good summer crag for hot days. 40 min approach. Routes 5b–8a. Quiet and alpine.'},
-  {id:'dri-horlini',name:'Dri Horlini',region:'Wallis (Saastal)',lat:46.105,lon:7.945,alt:2100,orientation:['S','SW'],rock:'Gneiss',notes:'High alpine crag near Almagellerhütte. Bolted sport routes. 2h approach. July–Sept.'},
-  {id:'gotthard-tremola',name:'Gotthard Tremola',region:'Ticino (Airolo)',lat:46.555,lon:8.565,alt:1800,orientation:['S','SE'],rock:'Granite',notes:'Near old Tremola road. Coarse granite, good friction. Summer crag at altitude.'},
-  {id:'vals-platz',name:'Vals',region:'Graubünden',lat:46.617,lon:9.180,alt:1250,orientation:['S','SW'],rock:'Gneiss',notes:'Beautiful Vals valley. Gneiss sport climbing. Quiet area, good camping. Routes 5c–7b.'},
-  {id:'chironico-sport',name:'Chironico (Sport)',region:'Ticino',lat:46.445,lon:8.855,alt:750,orientation:['S','SE'],rock:'Gneiss',notes:'Not just bouldering — sport sectors 6a–7c on superb gneiss. South-facing, sheltered. Oct–Apr best.'}
-];
-
-const REGIONS=[
-  {id:'ticino',name:'Ticino',sub:'Cresciano / Bellinzona',lat:46.23,lon:8.96,alt:500},
-  {id:'wallis',name:'Wallis / Valais',sub:'Saas / Visp area',lat:46.30,lon:7.88,alt:800},
-  {id:'berner-oberland',name:'Berner Oberland',sub:'Interlaken area',lat:46.69,lon:7.86,alt:700},
-  {id:'zentralschweiz',name:'Zentralschweiz',sub:'Gersau / Rigi area',lat:46.99,lon:8.52,alt:600},
-  {id:'jura',name:'Jura',sub:'Basel / Delémont',lat:47.37,lon:7.35,alt:500},
-  {id:'ostschweiz',name:'Ostschweiz / Graubünden',sub:'Chur area',lat:46.85,lon:9.53,alt:600},
-  {id:'gotthard',name:'Gotthard / Uri',sub:'Sustenpass area',lat:46.73,lon:8.45,alt:1200},
-  {id:'voralpen',name:'Voralpen',sub:'Engelberg area',lat:46.82,lon:8.40,alt:900}
-];
-
-const REGION_CRAGS={
-  'ticino':[{name:'Ponte Brolla',lat:46.193,lon:8.745,alt:300,rock:'Gneiss',orientation:['S','SW'],grades:'4a–7c'},{name:'Arcegno',lat:46.170,lon:8.730,alt:400,rock:'Gneiss',orientation:['S','SE'],grades:'5a–7b'},{name:'Balladrum',lat:46.165,lon:8.725,alt:350,rock:'Gneiss',orientation:['S'],grades:'4c–7a'},{name:'Cresciano (Sport)',lat:46.228,lon:8.995,alt:400,rock:'Gneiss',orientation:['S','SW'],grades:'5b–8a'},{name:'Claro',lat:46.258,lon:9.043,alt:500,rock:'Gneiss',orientation:['S','SE'],grades:'5c–8c'},{name:'Chironico (Sport)',lat:46.445,lon:8.855,alt:750,rock:'Gneiss',orientation:['S','SE'],grades:'6a–7c'},{name:'Sobrio',lat:46.480,lon:8.920,alt:950,rock:'Gneiss',orientation:['S','SE','SW'],grades:'5c–7b'},{name:'El Cat (Brontallo)',lat:46.345,lon:8.605,alt:700,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7b'},{name:'Eus (Verzasca)',lat:46.280,lon:8.870,alt:500,rock:'Gneiss',orientation:['S'],grades:'6a–8a'},{name:'Prato Sornico',lat:46.395,lon:8.620,alt:800,rock:'Gneiss',orientation:['SW','W'],grades:'6a–7c'}],
-  'wallis':[{name:'Salvan',lat:46.120,lon:7.020,alt:900,rock:'Gneiss',orientation:['S','SE','SW'],grades:'5a–9a'},{name:'Dri Horlini',lat:46.105,lon:7.945,alt:2100,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7a'},{name:'Saillon',lat:46.168,lon:7.190,alt:500,rock:'Limestone',orientation:['S'],grades:'5b–7c'},{name:'Dorénaz',lat:46.148,lon:7.050,alt:600,rock:'Gneiss',orientation:['S','SE'],grades:'5c–7b'},{name:'Vercorin',lat:46.268,lon:7.530,alt:1200,rock:'Gneiss',orientation:['S','SW'],grades:'5b–7a'},{name:'Nax',lat:46.225,lon:7.428,alt:1000,rock:'Limestone',orientation:['S'],grades:'5c–7b'},{name:'Raron',lat:46.315,lon:7.795,alt:700,rock:'Limestone',orientation:['S','SW'],grades:'6a–8a'},{name:'Bitsch',lat:46.355,lon:7.990,alt:800,rock:'Gneiss',orientation:['S'],grades:'5c–7a'},{name:'Fieschertal (Burg)',lat:46.432,lon:8.133,alt:1700,rock:'Granite',orientation:['S','SE'],grades:'5a–7a'},{name:'Stalden',lat:46.235,lon:7.870,alt:750,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7b'}],
-  'berner-oberland':[{name:'Lehn',lat:46.688,lon:7.848,alt:800,rock:'Limestone',orientation:['S','SW'],grades:'5b–8a'},{name:'Handegg',lat:46.717,lon:8.305,alt:1400,rock:'Granite',orientation:['S','SW'],grades:'5a–7a'},{name:'Gimmelwald',lat:46.548,lon:7.882,alt:1400,rock:'Limestone',orientation:['S'],grades:'5c–9a'},{name:'Elsigen',lat:46.505,lon:7.640,alt:1200,rock:'Limestone',orientation:['S','SW'],grades:'5a–8c'},{name:'Kandersteg',lat:46.497,lon:7.670,alt:1200,rock:'Limestone',orientation:['S','SE'],grades:'5b–7b'},{name:'Innertkirchen',lat:46.710,lon:8.230,alt:700,rock:'Granite',orientation:['S','SW'],grades:'5c–7a'},{name:'Bächlital',lat:46.680,lon:8.290,alt:1800,rock:'Granite',orientation:['S','SE'],grades:'5b–6c'},{name:'Guttannen',lat:46.680,lon:8.290,alt:1100,rock:'Granite',orientation:['S'],grades:'5c–7b'},{name:'Meiringen (Hasliberg)',lat:46.735,lon:8.185,alt:800,rock:'Limestone',orientation:['S','SW'],grades:'5b–7c'},{name:'Rosenlaui',lat:46.730,lon:8.165,alt:1400,rock:'Limestone',orientation:['SE','S'],grades:'6a–8b'}],
-  'zentralschweiz':[{name:'Sunneplättli (Gersau)',lat:46.994,lon:8.524,alt:650,rock:'Limestone',orientation:['S','SW'],grades:'4a–7c'},{name:'Föhnenberg (Gersau)',lat:46.990,lon:8.510,alt:750,rock:'Limestone',orientation:['S'],grades:'5c–7b'},{name:'Sattelflüe (Gersau)',lat:46.985,lon:8.530,alt:700,rock:'Limestone',orientation:['S','SE'],grades:'5b–7a'},{name:'Chileflue (Gersau)',lat:46.997,lon:8.520,alt:600,rock:'Limestone',orientation:['S','SW'],grades:'4c–6c'},{name:'Morschach',lat:46.975,lon:8.650,alt:700,rock:'Limestone',orientation:['S'],grades:'5a–7a'},{name:'Brüggler',lat:46.950,lon:8.898,alt:1200,rock:'Limestone',orientation:['S','SW'],grades:'5b–8a'},{name:'Voralpsee',lat:47.105,lon:9.215,alt:1100,rock:'Limestone',orientation:['S','SW'],grades:'6a–7c'},{name:'Sisikon',lat:46.940,lon:8.640,alt:500,rock:'Limestone',orientation:['S'],grades:'5c–7b'},{name:'Flüelen',lat:46.900,lon:8.630,alt:500,rock:'Limestone',orientation:['S','SE'],grades:'5b–7a'},{name:'Isenthal',lat:46.910,lon:8.570,alt:800,rock:'Limestone',orientation:['S','SW'],grades:'5c–7b'}],
-  'jura':[{name:'Pelzmühle',lat:47.398,lon:7.375,alt:500,rock:'Limestone',orientation:['S','SE'],grades:'5a–7c'},{name:'Löwenburg',lat:47.380,lon:7.355,alt:550,rock:'Limestone',orientation:['S'],grades:'5b–7b'},{name:'Hasenmatt',lat:47.230,lon:7.440,alt:900,rock:'Limestone',orientation:['S','SW'],grades:'5c–7a'},{name:'Bärschwil',lat:47.375,lon:7.490,alt:500,rock:'Limestone',orientation:['S'],grades:'5b–7a'},{name:'Metzerlen',lat:47.445,lon:7.455,alt:450,rock:'Limestone',orientation:['S','SE'],grades:'5a–7b'},{name:'Zullwil',lat:47.385,lon:7.515,alt:500,rock:'Limestone',orientation:['S','SW'],grades:'5b–6c'},{name:'Balsthal',lat:47.316,lon:7.695,alt:550,rock:'Limestone',orientation:['S'],grades:'5c–7c'},{name:'Oensingen',lat:47.285,lon:7.720,alt:500,rock:'Limestone',orientation:['S','SW'],grades:'5b–7a'},{name:'Raimeux',lat:47.348,lon:7.370,alt:700,rock:'Limestone',orientation:['S','SE'],grades:'5a–7b'},{name:'Moutier',lat:47.278,lon:7.370,alt:600,rock:'Limestone',orientation:['S'],grades:'5c–7c'}],
-  'ostschweiz':[{name:'Galerie (Amden)',lat:47.141,lon:9.124,alt:900,rock:'Limestone',orientation:['S','SW'],grades:'4b–8c'},{name:'Chinesische Mauer',lat:47.330,lon:9.435,alt:500,rock:'Limestone',orientation:['S'],grades:'6b–8b'},{name:'Haldenstein',lat:46.885,lon:9.520,alt:600,rock:'Limestone',orientation:['S','SW'],grades:'5b–7c'},{name:'Vals',lat:46.617,lon:9.180,alt:1250,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7b'},{name:'Calanda (Chur)',lat:46.870,lon:9.510,alt:700,rock:'Limestone',orientation:['S'],grades:'5c–7b'},{name:'Pfäfers (Bad Ragaz)',lat:46.990,lon:9.500,alt:650,rock:'Limestone',orientation:['S','SE'],grades:'5b–7a'},{name:'Murgtal',lat:47.080,lon:9.200,alt:900,rock:'Granite',orientation:['S','SW'],grades:'5c–7b'},{name:'Engi',lat:46.975,lon:9.155,alt:800,rock:'Limestone',orientation:['S'],grades:'5b–7a'},{name:'Klöntal',lat:47.040,lon:8.960,alt:900,rock:'Limestone',orientation:['S','SW'],grades:'5c–7c'},{name:'Flims',lat:46.835,lon:9.280,alt:1100,rock:'Limestone',orientation:['S','SE'],grades:'5b–7b'}],
-  'gotthard':[{name:'Schöllenen',lat:46.665,lon:8.588,alt:1000,rock:'Granite',orientation:['S','SE'],grades:'5b–7c'},{name:'Felliberg',lat:46.736,lon:8.641,alt:1200,rock:'Granite',orientation:['S','SE'],grades:'5b–8a'},{name:'Gotthard Tremola',lat:46.555,lon:8.565,alt:1800,rock:'Granite',orientation:['S','SE'],grades:'5c–7a'},{name:'Sustenpass',lat:46.732,lon:8.445,alt:2000,rock:'Granite',orientation:['S','SW'],grades:'5b–7b'},{name:'Furkapass',lat:46.575,lon:8.415,alt:2100,rock:'Granite',orientation:['S','SW'],grades:'5c–7a'},{name:'Göschenen',lat:46.668,lon:8.590,alt:1100,rock:'Granite',orientation:['S','SE','SW'],grades:'5b–7c'},{name:'Wassen',lat:46.710,lon:8.598,alt:900,rock:'Granite',orientation:['S'],grades:'5c–7a'},{name:'Realp',lat:46.598,lon:8.505,alt:1550,rock:'Granite',orientation:['S','SW'],grades:'5b–6c'},{name:'Nufenenpass',lat:46.478,lon:8.385,alt:2100,rock:'Granite',orientation:['S'],grades:'5c–7a'},{name:'Piansecco',lat:46.538,lon:8.490,alt:1700,rock:'Granite',orientation:['S','SE'],grades:'5b–7b'}],
-  'voralpen':[{name:'Engelberg (Brunnistöckli)',lat:46.820,lon:8.410,alt:1100,rock:'Limestone',orientation:['S','SW'],grades:'5b–7b'},{name:'Melchsee-Frutt',lat:46.775,lon:8.270,alt:1900,rock:'Limestone',orientation:['S'],grades:'5c–7a'},{name:'Planplatten',lat:46.765,lon:8.245,alt:2100,rock:'Limestone',orientation:['S','SE'],grades:'5b–6c'},{name:'Erstfeld',lat:46.820,lon:8.650,alt:600,rock:'Granite',orientation:['S'],grades:'5c–7b'},{name:'Attinghausen',lat:46.870,lon:8.615,alt:600,rock:'Limestone',orientation:['S','SW'],grades:'5b–7a'},{name:'Brunni (Engelberg)',lat:46.810,lon:8.395,alt:1600,rock:'Limestone',orientation:['S','SE'],grades:'5a–7a'},{name:'Grafenort',lat:46.840,lon:8.380,alt:600,rock:'Limestone',orientation:['S'],grades:'5c–7b'},{name:'Stans',lat:46.960,lon:8.365,alt:500,rock:'Limestone',orientation:['S','SW'],grades:'5b–6c'},{name:'Wolfenschiessen',lat:46.910,lon:8.395,alt:600,rock:'Limestone',orientation:['S'],grades:'5c–7a'},{name:'Sarnen (Ewil)',lat:46.895,lon:8.235,alt:700,rock:'Limestone',orientation:['S','SE'],grades:'5b–7b'}]
-};
-
-let crags=[],forecastCache={},regionCache={},cragExploreCache={},currentSort='score',editingId=null,expandedDay={},expandedRegion=null;
-
-function loadCrags(){try{const s=localStorage.getItem(STORAGE_KEY);crags=s?JSON.parse(s):[...DEFAULT_CRAGS];if(!s)saveCragsToStorage()}catch(e){crags=[...DEFAULT_CRAGS]}}
-function saveCragsToStorage(){localStorage.setItem(STORAGE_KEY,JSON.stringify(crags))}
-
-async function fetchDual(lat,lon){
-  const base={latitude:lat,longitude:lon,daily:DAILY_VARS,timezone:'Europe/Zurich',forecast_days:7};
-  const urlBest=`https://api.open-meteo.com/v1/forecast?${new URLSearchParams(base)}`;
-  const urlECMWF=`https://api.open-meteo.com/v1/forecast?${new URLSearchParams({...base,models:'ecmwf_ifs'})}`;
-  try{const[rB,rE]=await Promise.all([fetch(urlBest),fetch(urlECMWF)]);const best=rB.ok?await rB.json():null;const ecmwf=rE.ok?await rE.json():null;if(!best&&!ecmwf)throw new Error('Both models failed');return{best,ecmwf}}
-  catch(e){const sb=(window.self!==window.top)||(window.location.protocol==='blob:');if(sb||e.message?.includes('Failed to fetch')||e.name==='TypeError')throw new Error('Preview mode — open in browser');throw e}
-}
-
-function getSeasonProfile(ds){const m=ds?new Date(ds+'T00:00:00').getMonth():new Date().getMonth();if(m>=11||m<=1)return{idealMin:4,idealMax:16};if(m>=2&&m<=4)return{idealMin:8,idealMax:22};if(m>=5&&m<=7)return{idealMin:14,idealMax:28};return{idealMin:10,idealMax:24}}
-function computeScore(d,ds){let s=100;const p=d.precipitation_sum||0,pp=d.precipitation_probability_max||0;if(p>5)s-=60;else if(p>2)s-=40;else if(p>.5)s-=20;else if(p>0)s-=8;s-=(pp/100)*15;const w=d.wind_speed_10m_max||0,g=d.wind_gusts_10m_max||0;if(g>60)s-=35;else if(g>40)s-=20;else if(w>30)s-=15;else if(w>20)s-=5;const sn=getSeasonProfile(ds);const t=d.temperature_2m_max;if(t!==undefined){if(t<sn.idealMin-10)s-=30;else if(t<sn.idealMin-5)s-=18;else if(t<sn.idealMin)s-=8;else if(t>sn.idealMax+8)s-=25;else if(t>sn.idealMax+3)s-=12;else if(t>sn.idealMax)s-=4;else s+=3}const wc=d.weather_code||0;if(wc>=95)s-=30;else if(wc>=71)s-=25;else if(wc>=61)s-=20;else if(wc>=51)s-=10;else if(wc>=45)s-=8;return Math.max(0,Math.min(100,Math.round(s)))}
-function extractDay(fc,i){return{temperature_2m_max:fc.daily.temperature_2m_max[i],temperature_2m_min:fc.daily.temperature_2m_min[i],precipitation_sum:fc.daily.precipitation_sum[i],precipitation_probability_max:fc.daily.precipitation_probability_max[i],wind_speed_10m_max:fc.daily.wind_speed_10m_max[i],wind_gusts_10m_max:fc.daily.wind_gusts_10m_max[i],weather_code:fc.daily.weather_code[i],sunshine_duration:fc.daily.sunshine_duration?.[i],uv_index_max:fc.daily.uv_index_max?.[i]}}
-
-function blendedScore(fc,di){const src=fc.best||fc.ecmwf;const ds=src?.daily?.time?.[di]||null;const bD=fc.best?extractDay(fc.best,di):null;const eD=fc.ecmwf?extractDay(fc.ecmwf,di):null;const sB=bD?computeScore(bD,ds):null;const sE=eD?computeScore(eD,ds):null;if(sB!==null&&sE!==null){const avg=Math.round((sB+sE)/2);const diff=Math.abs(sB-sE);return{score:avg,confidence:diff<=10?'high':diff<=25?'medium':'low',sB,sE}}return{score:sB??sE??0,confidence:'single',sB,sE}}
-
-function scorePillClass(s){return s>=80?'s-great':s>=60?'s-good':s>=40?'s-ok':s>=20?'s-poor':'s-bad'}
-function scoreColorHex(s){return s>=80?'#5BAD6A':s>=60?'#7EC98A':s>=40?'#D4A843':s>=20?'#E8725A':'#9A9490'}
-function scoreWord(s){return s>=80?'Send it':s>=60?'Good':s>=40?'Maybe':s>=20?'Nicht Gut':'Rest day'}
-
-function wxLabel(c){if(c==null)return'—';if(c<=1)return'Sunny';if(c<=3)return'Partially Sunny';if(c<=48)return'Foggy';if(c<=55)return'Drizzle';if(c<=57)return'Freezing Drizzle';if(c<=65)return'Rain';if(c<=67)return'Freezing Rain';if(c<=75)return'Snow';if(c<=77)return'Snow Grains';if(c<=82)return'Heavy rain';if(c<=86)return'Snow showers';if(c>=95)return'Thunderstorm';return'Cloudy'}
-
-function wxSVG(c){
-  if(c==null)return'';
-  // SVG line-art weather icons matching the mockup style
-  if(c<=1)return`<svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="7" stroke-width="1.5"/><line x1="20" y1="4" x2="20" y2="9"/><line x1="20" y1="31" x2="20" y2="36"/><line x1="4" y1="20" x2="9" y2="20"/><line x1="31" y1="20" x2="36" y2="20"/><line x1="8.7" y1="8.7" x2="12.2" y2="12.2"/><line x1="27.8" y1="27.8" x2="31.3" y2="31.3"/><line x1="31.3" y1="8.7" x2="27.8" y2="12.2"/><line x1="12.2" y1="27.8" x2="8.7" y2="31.3"/></svg>`;
-  if(c<=3)return`<svg viewBox="0 0 40 40"><circle cx="14" cy="16" r="5" stroke-width="1.5"/><line x1="14" y1="6" x2="14" y2="9"/><line x1="6" y1="16" x2="9" y2="16"/><line x1="7.8" y1="9.8" x2="10.3" y2="12.3"/><line x1="20.2" y1="9.8" x2="17.7" y2="12.3"/><path d="M18 22a7 7 0 0 1 13.5 2.5c0 .2 0 .3 0 .5h1a4 4 0 0 1 0 8H13a3.5 3.5 0 0 1 0-7h1" stroke-width="1.5"/></svg>`;
-  if(c<=48)return`<svg viewBox="0 0 40 40"><path d="M10 28h20M8 32h24M12 36h16" stroke-width="1.5" stroke-linecap="round"/><path d="M16 20a6 6 0 0 1 11.5 2c0 .2 0 .3 0 .5h.5a3.5 3.5 0 0 1 0 7H12a3 3 0 0 1 0-6h1" stroke-width="1.5"/></svg>`;
-  if(c<=57)return`<svg viewBox="0 0 40 40"><path d="M14 18a6 6 0 0 1 11.5 2c0 .2 0 .3 0 .5h.5a3.5 3.5 0 0 1 0 7H10a3 3 0 0 1 0-6h1" stroke-width="1.5"/><line x1="14" y1="30" x2="14" y2="34" stroke-width="1.5" stroke-linecap="round"/><line x1="22" y1="31" x2="22" y2="35" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-  if(c<=67)return`<svg viewBox="0 0 40 40"><path d="M14 16a6 6 0 0 1 11.5 2c0 .2 0 .3 0 .5h.5a3.5 3.5 0 0 1 0 7H10a3 3 0 0 1 0-6h1" stroke-width="1.5"/><line x1="12" y1="28" x2="10" y2="34" stroke-width="1.5" stroke-linecap="round"/><line x1="19" y1="28" x2="17" y2="34" stroke-width="1.5" stroke-linecap="round"/><line x1="26" y1="28" x2="24" y2="34" stroke-width="1.5" stroke-linecap="round"/></svg>`;
-  if(c<=77)return`<svg viewBox="0 0 40 40"><path d="M14 16a6 6 0 0 1 11.5 2c0 .2 0 .3 0 .5h.5a3.5 3.5 0 0 1 0 7H10a3 3 0 0 1 0-6h1" stroke-width="1.5"/><circle cx="13" cy="32" r="1.5"/><circle cx="20" cy="34" r="1.5"/><circle cx="27" cy="31" r="1.5"/></svg>`;
-  if(c<=82)return`<svg viewBox="0 0 40 40"><path d="M14 14a6 6 0 0 1 11.5 2c0 .2 0 .3 0 .5h.5a3.5 3.5 0 0 1 0 7H10a3 3 0 0 1 0-6h1" stroke-width="1.5"/><line x1="10" y1="26" x2="8" y2="33" stroke-width="2" stroke-linecap="round"/><line x1="17" y1="26" x2="15" y2="33" stroke-width="2" stroke-linecap="round"/><line x1="24" y1="26" x2="22" y2="33" stroke-width="2" stroke-linecap="round"/><line x1="31" y1="26" x2="29" y2="33" stroke-width="2" stroke-linecap="round"/></svg>`;
-  if(c>=95)return`<svg viewBox="0 0 40 40"><path d="M14 14a6 6 0 0 1 11.5 2c0 .2 0 .3 0 .5h.5a3.5 3.5 0 0 1 0 7H10a3 3 0 0 1 0-6h1" stroke-width="1.5"/><polyline points="18,26 15,32 21,32 17,38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-  return`<svg viewBox="0 0 40 40"><path d="M14 18a6 6 0 0 1 11.5 2c0 .2 0 .3 0 .5h.5a3.5 3.5 0 0 1 0 7H10a3 3 0 0 1 0-6h1" stroke-width="1.5"/></svg>`;
-}
-
-function confTag(c){return c==='high'?'':c==='medium'?'<div class="conf-tag">uncertain</div>':'<div class="conf-tag">models split</div>'}
-
-// ═══ RENDER CRAGS ═══
-function renderCards(){
-  const grid=document.getElementById('cragGrid');let sorted=[...crags];
-  if(currentSort==='score')sorted.sort((a,b)=>getBestBlended(b.id)-getBestBlended(a.id));
-  else if(currentSort==='region')sorted.sort((a,b)=>(a.region||'').localeCompare(b.region||''));
-  else sorted.sort((a,b)=>a.name.localeCompare(b.name));
-  if(!sorted.length){grid.innerHTML='<div class="empty-state">No crags yet. Tap Add One.</div>';return}
-  const today=new Date().toISOString().slice(0,10);
-
-  grid.innerHTML=sorted.map((c,ci)=>{
-    const fc=forecastCache[c.id];
-    const metaParts=[c.region||'',c.alt?c.alt+'m':'',c.rock||'',(c.orientation||[]).join(' · ')].filter(Boolean);
-    const metaHTML=metaParts.map(p=>`<span>${p}</span>`).join('');
-
-    let fHTML;
-    if(!fc)fHTML=`<div class="forecast-area"><div class="forecast-loading">${'<div class="day-skel"></div>'.repeat(4)}</div></div>`;
-    else if(fc.error)fHTML=`<div class="forecast-area"><div class="forecast-error">${fc.error}</div></div>`;
-    else{
-      const src=fc.best||fc.ecmwf;if(!src?.daily){fHTML=`<div class="forecast-area"><div class="forecast-error">No data</div></div>`}
-      else{
-        const expIdx=expandedDay[c.id];
-        const cells=src.daily.time.map((t,di)=>{
-          const dt=new Date(t+'T00:00:00');
-          const bl=blendedScore(fc,di);
-          const dd=extractDay(fc.best||fc.ecmwf,di);
-          const isExp=expIdx===di;
-          const dayLabel=dt.toLocaleDateString('en-US',{weekday:'short'}).toUpperCase()+' '+dt.getDate();
-          return`<div class="fday ${isExp?'active-day':''}" onclick="toggleExpand('${c.id}',${di})">
-            <div class="fday-label">${dayLabel}</div>
-            <div class="fday-icon">${wxSVG(dd.weather_code)}</div>
-            <div class="fday-wx-label">${wxLabel(dd.weather_code)}</div>
-            <div class="fday-temp">[ ${dd.temperature_2m_min!=null?Math.round(dd.temperature_2m_min):'?'}° / ${dd.temperature_2m_max!=null?Math.round(dd.temperature_2m_max):'?'}° ]</div>
-            <div class="score-pill ${scorePillClass(bl.score)}">${bl.score}</div>
-            ${confTag(bl.confidence)}
-          </div>`;
-        }).join('');
-
-        let detailHTML='';
-        if(expIdx!=null&&src.daily.time[expIdx]){
-          const dd=extractDay(fc.best||fc.ecmwf,expIdx);
-          const bl=blendedScore(fc,expIdx);
-          const p=dd.precipitation_sum||0,pp=dd.precipitation_probability_max||0;
-          const w=dd.wind_speed_10m_max||0,g=dd.wind_gusts_10m_max||0;
-          const sh=dd.sunshine_duration?(dd.sunshine_duration/3600).toFixed(2):'—';
-          const uv=dd.uv_index_max!=null?dd.uv_index_max.toFixed(0):'—';
-          const wc=g>50?'bad':g>35||w>25?'warn':'';
-          const rc=p>.5?'rain':'';
-          const dl=new Date(src.daily.time[expIdx]+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'short',day:'numeric'});
-          const expDateStr=src.daily.time[expIdx];
-
-          let modelHTML='';
-          if(fc.best&&fc.ecmwf){const db=extractDay(fc.best,expIdx),de=extractDay(fc.ecmwf,expIdx);
-            modelHTML=`<div class="model-row"><div class="model-box"><strong>Best-match (local)</strong>Rain: ${(db.precipitation_sum||0).toFixed(1)}mm · ${db.precipitation_probability_max||0}%<br>Wind: ${Math.round(db.wind_speed_10m_max||0)} Km/h<br>Score: ${computeScore(db,expDateStr)}</div><div class="model-box"><strong>ECMWF IFS</strong>Rain: ${(de.precipitation_sum||0).toFixed(1)}mm · ${de.precipitation_probability_max||0}%<br>Wind: ${Math.round(de.wind_speed_10m_max||0)} Km/h<br>Score: ${computeScore(de,expDateStr)}</div></div>`}
-
-          detailHTML=`<div class="detail-panel">
-            <span class="detail-date">${dl}</span><span class="detail-score-label">Climbability score: ${bl.score} ${scoreWord(bl.score)}</span>
-            <div class="detail-grid">
-              <div class="detail-item"><label>Temperature</label><span>${dd.temperature_2m_min!=null?Math.round(dd.temperature_2m_min):'?'}° / ${dd.temperature_2m_max!=null?Math.round(dd.temperature_2m_max):'?'}°</span></div>
-              <div class="detail-item"><label>Rain</label><span class="${rc}">${p.toFixed(1)}mm (${pp}%)</span></div>
-              <div class="detail-item"><label>Wind</label><span class="${wc}">${Math.round(w)} Km/h</span></div>
-              <div class="detail-item"><label>Gusts</label><span class="${wc}">${Math.round(g)} Km/h</span></div>
-              <div class="detail-item"><label>Sunshine</label><span>${sh} h</span></div>
-              <div class="detail-item"><label>UV Index</label><span>${uv}</span></div>
-            </div>${modelHTML}
-          </div>`;
-        }
-        fHTML=`<div class="forecast-area"><div class="forecast-grid">${cells}</div>${detailHTML}</div>`;
-      }
-    }
-    return`<div class="crag-card" style="animation-delay:${ci*.08}s">
-      <div class="card-head"><div class="card-head-row"><div class="crag-name">${c.name}</div><div class="card-actions"><button class="card-act" onclick="editCrag('${c.id}')">✎</button><button class="card-act" onclick="removeCrag('${c.id}')">✕</button></div></div>
-      <div class="meta-pipe">${metaHTML}</div></div>
-      ${c.notes?`<div class="card-notes">${c.notes}</div>`:''}
-      ${fHTML}</div>`;
-  }).join('');
-}
-
-// ═══ EXPLORE ═══
-function toggleRegion(rid){if(expandedRegion===rid)expandedRegion=null;else{expandedRegion=rid;const rc=REGION_CRAGS[rid]||[];if(rc.some(c=>!cragExploreCache[rid+'_'+c.name]))fetchRegionCrags(rid)}renderExplore()}
-async function fetchRegionCrags(rid){const rc=REGION_CRAGS[rid]||[];await Promise.all(rc.map(async c=>{const k=rid+'_'+c.name;if(cragExploreCache[k])return;try{cragExploreCache[k]=await fetchDual(c.lat,c.lon)}catch(e){cragExploreCache[k]={error:e.message}}}));renderExplore()}
-
-function renderExplore(){
-  const grid=document.getElementById('exploreGrid'),sel=document.getElementById('exploreDaySelect');
-  const any=Object.values(regionCache).find(r=>r&&!r.error&&(r.best||r.ecmwf));
-  if(any&&sel.options.length<=1){const src=any.best||any.ecmwf;if(src?.daily?.time){sel.innerHTML='<option value="best">best day (7-day)</option>';src.daily.time.forEach((t,i)=>{const dt=new Date(t+'T00:00:00');sel.innerHTML+=`<option value="${i}">${dt.toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'})}</option>`})}}
-  const mode=sel.value;
-  let ranked=REGIONS.map(r=>{const fc=regionCache[r.id];if(!fc||fc.error||(!fc.best&&!fc.ecmwf))return{...r,scores:[],bestScore:0,bestDay:'—',avgConf:'',error:fc?.error};const src=fc.best||fc.ecmwf;const scores=[];for(let i=0;i<src.daily.time.length;i++)scores.push(blendedScore(fc,i));let ss;if(mode==='best')ss=Math.max(...scores.map(s=>s.score));else{const di=parseInt(mode);ss=scores[di]?scores[di].score:0}const bi=scores.reduce((b,s,i)=>s.score>scores[b].score?i:b,0);const bd=new Date(src.daily.time[bi]+'T00:00:00');return{...r,scores,sortScore:ss,bestScore:scores[bi].score,bestDay:bd.toLocaleDateString('en-US',{weekday:'short',day:'numeric'}),avgConf:scores.some(s=>s.confidence==='low')?'some disagreement':scores.some(s=>s.confidence==='medium')?'mostly aligned':'models agree'}});
-  ranked.sort((a,b)=>(b.sortScore||0)-(a.sortScore||0));
-
-  grid.innerHTML=ranked.map((r,ri)=>{
-    if(r.error)return`<div class="region-card" style="animation-delay:${ri*.06}s"><div class="region-toggle"><div class="region-header"><span class="region-rank">${ri+1}</span><span class="region-name">${r.name}</span></div><div class="forecast-error">${r.error}</div></div></div>`;
-    if(!r.scores.length)return`<div class="region-card" style="animation-delay:${ri*.06}s"><div class="region-toggle"><div class="region-header"><span class="region-rank">${ri+1}</span><span class="region-name">${r.name}</span></div><div style="padding:8px 28px;font-size:.75rem;color:var(--ink-faint)">Loading…</div></div></div>`;
-    const pips=r.scores.map(s=>`<div class="region-pip" style="background:${scoreColorHex(s.score)}"></div>`).join('');
-    const src2=regionCache[r.id].best||regionCache[r.id].ecmwf;
-    const labels=`<span>${new Date(src2.daily.time[0]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'})}</span><span>${new Date(src2.daily.time[r.scores.length-1]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'})}</span>`;
-    const isExp=expandedRegion===r.id;
-    let cHTML='';
-    if(isExp){const rc=REGION_CRAGS[r.id]||[];const sc=rc.map(c=>{const k=r.id+'_'+c.name;const fc=cragExploreCache[k];let bs=null,bd='';if(fc&&!fc.error&&(fc.best||fc.ecmwf)){const s=fc.best||fc.ecmwf;let b=0,bi=0;s.daily.time.forEach((_,i)=>{const v=blendedScore(fc,i).score;if(v>b){b=v;bi=i}});bs=b;bd=new Date(s.daily.time[bi]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'})}return{...c,bs,bd}}).sort((a,b)=>(b.bs??-1)-(a.bs??-1));
-      cHTML=`<div class="region-crags">${sc.map(c=>c.bs===null?`<div class="rcrag"><div><div class="rcrag-name">${c.name}</div><div class="rcrag-meta">${c.alt}m · ${c.rock} · ${c.grades}</div></div><div class="rcrag-score"><div class="rcrag-score-num" style="color:var(--ink-ghost)">…</div></div></div>`:`<div class="rcrag"><div><div class="rcrag-name">${c.name}</div><div class="rcrag-meta">${c.alt}m · ${c.rock} · ${c.grades}</div></div><div class="rcrag-score"><div class="rcrag-score-num" style="color:${scoreColorHex(c.bs)}">${c.bs}</div><div class="rcrag-score-day">${c.bd}</div></div></div>`).join('')}${sc.some(c=>c.bs===null)?'<div class="region-crags-loading">fetching forecasts…</div>':''}</div>`}
-
-    return`<div class="region-card" style="animation-delay:${ri*.06}s"><div class="region-toggle" onclick="toggleRegion('${r.id}')">
-      <div class="region-header"><span class="region-rank">${ri+1}</span><span class="region-name">${r.name}</span><div class="region-best"><div class="region-best-score" style="color:${scoreColorHex(r.bestScore)}">${r.bestScore}</div><div class="region-best-label">best · ${r.bestDay}</div></div></div>
-      <div class="region-meta">${r.sub} · ${r.alt}m</div>
-      <div class="region-pips">${pips}</div>
-      <div class="region-pip-labels">${labels}</div>
-      <div class="region-conf">${r.avgConf}</div>
-      <div class="region-hint">${isExp?'▲ collapse':'▼ tap for top crags'}</div>
-    </div>${cHTML}</div>`;
-  }).join('');
-}
-
-function toggleExpand(id,di){expandedDay[id]=expandedDay[id]===di?null:di;renderCards()}
-function getBestBlended(id){const fc=forecastCache[id];if(!fc||fc.error)return-1;const src=fc.best||fc.ecmwf;if(!src?.daily)return-1;return Math.max(...src.daily.time.map((_,i)=>blendedScore(fc,i).score))}
-
-async function fetchAllForecasts(){setStatus('loading','updating…');let e=false;await Promise.all(crags.map(async c=>{try{forecastCache[c.id]=await fetchDual(c.lat,c.lon)}catch(er){forecastCache[c.id]={error:er.message};e=true}renderCards()}));if(e)setStatus('error','connection issue');else{const t=new Date();setStatus('ok',`updated ${t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})}`)}}
-async function fetchAllRegions(){setStatus('loading','updating regions…');let e=false;await Promise.all(REGIONS.map(async r=>{try{regionCache[r.id]=await fetchDual(r.lat,r.lon)}catch(er){regionCache[r.id]={error:er.message};e=true}renderExplore()}));if(!e){const t=new Date();setStatus('ok',`updated ${t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})}`)}}
-function refreshAll(){forecastCache={};regionCache={};cragExploreCache={};expandedDay={};expandedRegion=null;renderCards();renderExplore();fetchAllForecasts().then(()=>fetchAllRegions())}
-function setStatus(s,t){const d=document.getElementById('statusDot'),x=document.getElementById('statusText');d.className='status-dot';if(s==='loading')d.classList.add('loading');if(s==='error')d.classList.add('error');x.textContent=t}
-
-function switchTab(name,btn){document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('pane-'+name).classList.add('active');if(name==='explore'&&!Object.keys(regionCache).length)fetchAllRegions()}
-function setSort(b){document.querySelectorAll('.sort-btn').forEach(p=>p.classList.remove('active'));b.classList.add('active');currentSort=b.dataset.sort;renderCards()}
-
-let selectedOrientations=[];
-function buildOrientationButtons(){document.getElementById('orientationBtns').innerHTML=ORIENTATIONS.map(o=>`<button type="button" class="orient-btn ${selectedOrientations.includes(o)?'active':''}" onclick="toggleOrientation('${o}',this)">${o}</button>`).join('')}
-function toggleOrientation(o,b){const i=selectedOrientations.indexOf(o);if(i>=0){selectedOrientations.splice(i,1);b.classList.remove('active')}else{selectedOrientations.push(o);b.classList.add('active')}}
-function openModal(id){editingId=id||null;selectedOrientations=[];if(editingId){const c=crags.find(x=>x.id===editingId);if(!c)return;document.getElementById('modalTitle').textContent='Edit crag';document.getElementById('inputName').value=c.name;document.getElementById('inputRegion').value=c.region||'';document.getElementById('inputLat').value=c.lat;document.getElementById('inputLon').value=c.lon;document.getElementById('inputAlt').value=c.alt||'';document.getElementById('inputRock').value=c.rock||'';document.getElementById('inputNotes').value=c.notes||'';selectedOrientations=[...(c.orientation||[])]}else{document.getElementById('modalTitle').textContent='Add a crag';['inputName','inputRegion','inputLat','inputLon','inputAlt','inputRock'].forEach(id=>document.getElementById(id).value='');document.getElementById('inputNotes').value=''}buildOrientationButtons();document.getElementById('modalOverlay').classList.add('open');setTimeout(()=>document.getElementById('inputName').focus(),100)}
-function closeModal(){document.getElementById('modalOverlay').classList.remove('open');editingId=null}
-function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal()}
-async function saveCrag(){const name=document.getElementById('inputName').value.trim(),region=document.getElementById('inputRegion').value.trim(),lat=parseFloat(document.getElementById('inputLat').value),lon=parseFloat(document.getElementById('inputLon').value),alt=parseInt(document.getElementById('inputAlt').value)||null,rock=document.getElementById('inputRock').value.trim(),notes=document.getElementById('inputNotes').value.trim();if(!name||isNaN(lat)||isNaN(lon)){alert('Name, latitude, and longitude are required.');return}if(editingId){const i=crags.findIndex(c=>c.id===editingId);if(i>=0){crags[i]={...crags[i],name,region,lat,lon,alt,rock,notes,orientation:[...selectedOrientations]};delete forecastCache[editingId]}}else{crags.push({id:name.toLowerCase().replace(/[^a-z0-9]/g,'-')+'-'+Date.now(),name,region,lat,lon,alt,rock,notes,orientation:[...selectedOrientations]})}saveCragsToStorage();closeModal();renderCards();fetchAllForecasts()}
-function editCrag(id){openModal(id)}
-function removeCrag(id){const c=crags.find(x=>x.id===id);if(!c||!confirm(`Remove ${c.name}?`))return;crags=crags.filter(x=>x.id!==id);delete forecastCache[id];saveCragsToStorage();renderCards()}
-
-function init(){loadCrags();renderCards();renderExplore();const sb=(window.self!==window.top)||(window.location.protocol==='blob:');if(sb){const b=document.createElement('div');b.className='sandbox-banner';b.textContent='Preview mode — download and open in your browser for live weather data.';document.querySelector('main').prepend(b);setStatus('error','preview only');return}fetchAllForecasts();setInterval(()=>{fetchAllForecasts();if(document.getElementById('pane-explore').classList.contains('active'))fetchAllRegions()},30*60*1000)}
-document.addEventListener('DOMContentLoaded',init);
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});
-</script>
+  <!-- ═══ SCRIPTS (order matters) ═══ -->
+  <script src="data.js"></script>
+  <script src="icons.js"></script>
+  <script src="app.js"></script>
 
 </body>
 </html>
