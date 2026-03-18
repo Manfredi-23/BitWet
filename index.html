@@ -141,6 +141,19 @@ main{max-width:800px;margin:0 auto;padding:12px 24px 60px}
 .region-day-label{display:flex;justify-content:space-between;margin-top:4px}
 .region-day-label span{font-family:‘DM Mono’,monospace;font-size:.55rem;color:var(–ink-ghost)}
 .region-confidence{font-family:‘DM Mono’,monospace;font-size:.6rem;color:var(–ink-faint);margin-top:6px}
+.region-toggle{cursor:pointer}
+.region-toggle:hover .region-name{color:var(–moss)}
+.region-crags{border-top:1px solid var(–card-border);padding:12px 20px 16px;animation:slideDown .25s ease-out}
+.region-crags-loading{padding:12px 20px;font-size:.75rem;color:var(–ink-faint);font-style:italic}
+.rcrag{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(–card-border)}
+.rcrag:last-child{border-bottom:none}
+.rcrag-left{flex:1;min-width:0}
+.rcrag-name{font-size:.85rem;font-weight:500;color:var(–ink)}
+.rcrag-meta{font-size:.65rem;color:var(–ink-faint);margin-top:1px}
+.rcrag-score{text-align:right;min-width:50px}
+.rcrag-score-num{font-family:‘DM Mono’,monospace;font-size:.9rem;font-weight:500}
+.rcrag-score-label{font-size:.55rem;color:var(–ink-faint);letter-spacing:.04em}
+.region-expand-hint{font-size:.65rem;color:var(–ink-ghost);margin-top:6px;letter-spacing:.03em}
 
 /* EXPLORE sort */
 .explore-controls{display:flex;align-items:center;gap:8px;margin-bottom:20px}
@@ -270,13 +283,23 @@ header{padding:20px 18px 16px}main{padding:12px 18px 48px}.card-top{padding:16px
 </div>
 
 <script>
-const STORAGE_KEY='cragMeteo_v5';
+const STORAGE_KEY='cragMeteo_v6';
 const ORIENTATIONS=['N','NE','E','SE','S','SW','W','NW'];
 const DAILY_VARS='temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunshine_duration,uv_index_max';
 
 const DEFAULT_CRAGS=[
   {id:'sobrio',name:'Sobrio',region:'Ticino',lat:46.480,lon:8.920,alt:950,orientation:['S','SE','SW'],rock:'Gneiss',notes:'Small mountain roads to parking. 10 min hike down to crag. Great 6b–7a range.'},
-  {id:'sunneplaettli',name:'Sunneplättli',region:'Schwyz (Gersau)',lat:46.994,lon:8.524,alt:650,orientation:['S','SW'],rock:'Limestone',notes:'Above Vierwaldstättersee. Can be crowded on weekends. Climbable in winter on sunny days.'}
+  {id:'sunneplaettli',name:'Sunneplättli',region:'Schwyz (Gersau)',lat:46.994,lon:8.524,alt:650,orientation:['S','SW'],rock:'Limestone',notes:'Above Vierwaldstättersee. Can be crowded on weekends. Climbable in winter on sunny days.'},
+  {id:'handegg',name:'Handegg',region:'Berner Oberland (Grimsel)',lat:46.717,lon:8.305,alt:1400,orientation:['S','SW'],rock:'Granite',notes:'Grimselpass area. Multi-pitch and single pitch on superb granite. Summer crag (snow until May). Road access easy.'},
+  {id:'schoellenen',name:'Schöllenen',region:'Uri (Göschenen)',lat:46.665,lon:8.588,alt:1000,orientation:['S','SE'],rock:'Granite',notes:'Dramatic gorge setting near Andermatt. Granite walls with routes 6a–7c. Can be shady — pick sectors carefully. Summer best.'},
+  {id:'lehn',name:'Lehn',region:'Berner Oberland (Interlaken)',lat:46.688,lon:7.848,alt:800,orientation:['S','SW'],rock:'Limestone',notes:'Regarded as one of Switzerland\'s most varied crags. Huge range of styles. Good 6b–7b selection. Can get busy.'},
+  {id:'salvan',name:'Salvan',region:'Wallis (Bas-Valais)',lat:46.120,lon:7.020,alt:900,orientation:['S','SE','SW'],rock:'Gneiss',notes:'120+ routes from 5a–9a. Perfect gneiss, aesthetic lines. Nature campsite at Van d\'en Haut. Quieter than Ticino.'},
+  {id:'cadarese',name:'Cadarese',region:'Ossola Valley (IT border)',lat:46.280,lon:8.300,alt:700,orientation:['S','SW'],rock:'Granite',notes:'Just across the Italian border. World-class granite crack climbing. Also sport routes 6a–8a. Quiet, raw setting.'},
+  {id:'felliberg',name:'Felliberg',region:'Uri (Amsteg)',lat:46.736,lon:8.641,alt:1200,orientation:['S','SE'],rock:'Granite',notes:'Good summer crag for hot days. 40 min approach on forest road. Routes 5b–8a. Quiet and alpine. Bring 70m rope, 14 draws.'},
+  {id:'dri-horlini',name:'Dri Horlini',region:'Wallis (Saastal)',lat:46.105,lon:7.945,alt:2100,orientation:['S','SW'],rock:'Gneiss',notes:'High alpine crag near Almagellerhütte. Bolted sport routes on gneiss. Stunning views. 2h approach but worth it. July–Sept.'},
+  {id:'gotthard-tremola',name:'Gotthard Tremola',region:'Ticino (Airolo)',lat:46.555,lon:8.565,alt:1800,orientation:['S','SE'],rock:'Granite',notes:'Near old Tremola road. Coarse granite, good friction. Summer crag at altitude. Less crowded than valley floors.'},
+  {id:'vals-platz',name:'Vals',region:'Graubünden',lat:46.617,lon:9.180,alt:1250,orientation:['S','SW'],rock:'Gneiss',notes:'Beautiful Vals valley. Gneiss sport climbing with mountain views. Quiet area, good camping. Routes 5c–7b.'},
+  {id:'chironico-sport',name:'Chironico (Sport)',region:'Ticino',lat:46.445,lon:8.855,alt:750,orientation:['S','SE'],rock:'Gneiss',notes:'Not just bouldering — sport sectors with routes 6a–7c on superb gneiss. South-facing, sheltered. Oct–Apr best.'}
 ];
 
 // 8 Swiss climbing regions with representative coordinates
@@ -291,7 +314,107 @@ const REGIONS=[
   {id:'voralpen',name:'Voralpen',sub:'Engelberg area',lat:46.82,lon:8.40,alt:900}
 ];
 
-let crags=[],forecastCache={},regionCache={},currentSort='name',editingId=null,expandedDay={};
+// Pre-loaded crag database for explore — ~10 per region
+const REGION_CRAGS={
+  'ticino':[
+    {name:'Ponte Brolla',lat:46.193,lon:8.745,alt:300,rock:'Gneiss',orientation:['S','SW'],grades:'4a–7c'},
+    {name:'Arcegno',lat:46.170,lon:8.730,alt:400,rock:'Gneiss',orientation:['S','SE'],grades:'5a–7b'},
+    {name:'Balladrum',lat:46.165,lon:8.725,alt:350,rock:'Gneiss',orientation:['S'],grades:'4c–7a'},
+    {name:'Cresciano (Sport)',lat:46.228,lon:8.995,alt:400,rock:'Gneiss',orientation:['S','SW'],grades:'5b–8a'},
+    {name:'Claro',lat:46.258,lon:9.043,alt:500,rock:'Gneiss',orientation:['S','SE'],grades:'5c–8c'},
+    {name:'Chironico (Sport)',lat:46.445,lon:8.855,alt:750,rock:'Gneiss',orientation:['S','SE'],grades:'6a–7c'},
+    {name:'Sobrio',lat:46.480,lon:8.920,alt:950,rock:'Gneiss',orientation:['S','SE','SW'],grades:'5c–7b'},
+    {name:'El Cat (Brontallo)',lat:46.345,lon:8.605,alt:700,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7b'},
+    {name:'Eus (Verzasca)',lat:46.280,lon:8.870,alt:500,rock:'Gneiss',orientation:['S'],grades:'6a–8a'},
+    {name:'Prato Sornico',lat:46.395,lon:8.620,alt:800,rock:'Gneiss',orientation:['SW','W'],grades:'6a–7c'},
+  ],
+  'wallis':[
+    {name:'Salvan',lat:46.120,lon:7.020,alt:900,rock:'Gneiss',orientation:['S','SE','SW'],grades:'5a–9a'},
+    {name:'Dri Horlini',lat:46.105,lon:7.945,alt:2100,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7a'},
+    {name:'Saillon',lat:46.168,lon:7.190,alt:500,rock:'Limestone',orientation:['S'],grades:'5b–7c'},
+    {name:'Dorénaz',lat:46.148,lon:7.050,alt:600,rock:'Gneiss',orientation:['S','SE'],grades:'5c–7b'},
+    {name:'Vercorin',lat:46.268,lon:7.530,alt:1200,rock:'Gneiss',orientation:['S','SW'],grades:'5b–7a'},
+    {name:'Nax',lat:46.225,lon:7.428,alt:1000,rock:'Limestone',orientation:['S'],grades:'5c–7b'},
+    {name:'Raron',lat:46.315,lon:7.795,alt:700,rock:'Limestone',orientation:['S','SW'],grades:'6a–8a'},
+    {name:'Bitsch',lat:46.355,lon:7.990,alt:800,rock:'Gneiss',orientation:['S'],grades:'5c–7a'},
+    {name:'Fieschertal (Burg)',lat:46.432,lon:8.133,alt:1700,rock:'Granite',orientation:['S','SE'],grades:'5a–7a'},
+    {name:'Stalden',lat:46.235,lon:7.870,alt:750,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7b'},
+  ],
+  'berner-oberland':[
+    {name:'Lehn',lat:46.688,lon:7.848,alt:800,rock:'Limestone',orientation:['S','SW'],grades:'5b–8a'},
+    {name:'Handegg',lat:46.717,lon:8.305,alt:1400,rock:'Granite',orientation:['S','SW'],grades:'5a–7a'},
+    {name:'Gimmelwald',lat:46.548,lon:7.882,alt:1400,rock:'Limestone',orientation:['S'],grades:'5c–9a'},
+    {name:'Elsigen',lat:46.505,lon:7.640,alt:1200,rock:'Limestone',orientation:['S','SW'],grades:'5a–8c'},
+    {name:'Kandersteg',lat:46.497,lon:7.670,alt:1200,rock:'Limestone',orientation:['S','SE'],grades:'5b–7b'},
+    {name:'Innertkirchen',lat:46.710,lon:8.230,alt:700,rock:'Granite',orientation:['S','SW'],grades:'5c–7a'},
+    {name:'Bächlital',lat:46.680,lon:8.290,alt:1800,rock:'Granite',orientation:['S','SE'],grades:'5b–6c'},
+    {name:'Guttannen',lat:46.680,lon:8.290,alt:1100,rock:'Granite',orientation:['S'],grades:'5c–7b'},
+    {name:'Meiringen (Hasliberg)',lat:46.735,lon:8.185,alt:800,rock:'Limestone',orientation:['S','SW'],grades:'5b–7c'},
+    {name:'Rosenlaui',lat:46.730,lon:8.165,alt:1400,rock:'Limestone',orientation:['SE','S'],grades:'6a–8b'},
+  ],
+  'zentralschweiz':[
+    {name:'Sunneplättli (Gersau)',lat:46.994,lon:8.524,alt:650,rock:'Limestone',orientation:['S','SW'],grades:'4a–7c'},
+    {name:'Föhnenberg (Gersau)',lat:46.990,lon:8.510,alt:750,rock:'Limestone',orientation:['S'],grades:'5c–7b'},
+    {name:'Sattelflüe (Gersau)',lat:46.985,lon:8.530,alt:700,rock:'Limestone',orientation:['S','SE'],grades:'5b–7a'},
+    {name:'Chileflue (Gersau)',lat:46.997,lon:8.520,alt:600,rock:'Limestone',orientation:['S','SW'],grades:'4c–6c'},
+    {name:'Morschach',lat:46.975,lon:8.650,alt:700,rock:'Limestone',orientation:['S'],grades:'5a–7a'},
+    {name:'Brüggler',lat:46.950,lon:8.898,alt:1200,rock:'Limestone',orientation:['S','SW'],grades:'5b–8a'},
+    {name:'Voralpsee',lat:47.105,lon:9.215,alt:1100,rock:'Limestone',orientation:['S','SW'],grades:'6a–7c'},
+    {name:'Sisikon',lat:46.940,lon:8.640,alt:500,rock:'Limestone',orientation:['S'],grades:'5c–7b'},
+    {name:'Flüelen',lat:46.900,lon:8.630,alt:500,rock:'Limestone',orientation:['S','SE'],grades:'5b–7a'},
+    {name:'Isenthal',lat:46.910,lon:8.570,alt:800,rock:'Limestone',orientation:['S','SW'],grades:'5c–7b'},
+  ],
+  'jura':[
+    {name:'Pelzmühle',lat:47.398,lon:7.375,alt:500,rock:'Limestone',orientation:['S','SE'],grades:'5a–7c'},
+    {name:'Löwenburg',lat:47.380,lon:7.355,alt:550,rock:'Limestone',orientation:['S'],grades:'5b–7b'},
+    {name:'Hasenmatt',lat:47.230,lon:7.440,alt:900,rock:'Limestone',orientation:['S','SW'],grades:'5c–7a'},
+    {name:'Bärschwil',lat:47.375,lon:7.490,alt:500,rock:'Limestone',orientation:['S'],grades:'5b–7a'},
+    {name:'Metzerlen',lat:47.445,lon:7.455,alt:450,rock:'Limestone',orientation:['S','SE'],grades:'5a–7b'},
+    {name:'Zullwil',lat:47.385,lon:7.515,alt:500,rock:'Limestone',orientation:['S','SW'],grades:'5b–6c'},
+    {name:'Balsthal',lat:47.316,lon:7.695,alt:550,rock:'Limestone',orientation:['S'],grades:'5c–7c'},
+    {name:'Oensingen',lat:47.285,lon:7.720,alt:500,rock:'Limestone',orientation:['S','SW'],grades:'5b–7a'},
+    {name:'Raimeux',lat:47.348,lon:7.370,alt:700,rock:'Limestone',orientation:['S','SE'],grades:'5a–7b'},
+    {name:'Moutier',lat:47.278,lon:7.370,alt:600,rock:'Limestone',orientation:['S'],grades:'5c–7c'},
+  ],
+  'ostschweiz':[
+    {name:'Galerie (Amden)',lat:47.141,lon:9.124,alt:900,rock:'Limestone',orientation:['S','SW'],grades:'4b–8c'},
+    {name:'Chinesische Mauer',lat:47.330,lon:9.435,alt:500,rock:'Limestone',orientation:['S'],grades:'6b–8b'},
+    {name:'Haldenstein',lat:46.885,lon:9.520,alt:600,rock:'Limestone',orientation:['S','SW'],grades:'5b–7c'},
+    {name:'Vals',lat:46.617,lon:9.180,alt:1250,rock:'Gneiss',orientation:['S','SW'],grades:'5c–7b'},
+    {name:'Calanda (Chur)',lat:46.870,lon:9.510,alt:700,rock:'Limestone',orientation:['S'],grades:'5c–7b'},
+    {name:'Pfäfers (Bad Ragaz)',lat:46.990,lon:9.500,alt:650,rock:'Limestone',orientation:['S','SE'],grades:'5b–7a'},
+    {name:'Murgtal',lat:47.080,lon:9.200,alt:900,rock:'Granite',orientation:['S','SW'],grades:'5c–7b'},
+    {name:'Engi',lat:46.975,lon:9.155,alt:800,rock:'Limestone',orientation:['S'],grades:'5b–7a'},
+    {name:'Klöntal',lat:47.040,lon:8.960,alt:900,rock:'Limestone',orientation:['S','SW'],grades:'5c–7c'},
+    {name:'Flims',lat:46.835,lon:9.280,alt:1100,rock:'Limestone',orientation:['S','SE'],grades:'5b–7b'},
+  ],
+  'gotthard':[
+    {name:'Schöllenen',lat:46.665,lon:8.588,alt:1000,rock:'Granite',orientation:['S','SE'],grades:'5b–7c'},
+    {name:'Felliberg',lat:46.736,lon:8.641,alt:1200,rock:'Granite',orientation:['S','SE'],grades:'5b–8a'},
+    {name:'Gotthard Tremola',lat:46.555,lon:8.565,alt:1800,rock:'Granite',orientation:['S','SE'],grades:'5c–7a'},
+    {name:'Sustenpass',lat:46.732,lon:8.445,alt:2000,rock:'Granite',orientation:['S','SW'],grades:'5b–7b'},
+    {name:'Furkapass',lat:46.575,lon:8.415,alt:2100,rock:'Granite',orientation:['S','SW'],grades:'5c–7a'},
+    {name:'Göschenen',lat:46.668,lon:8.590,alt:1100,rock:'Granite',orientation:['S','SE','SW'],grades:'5b–7c'},
+    {name:'Wassen',lat:46.710,lon:8.598,alt:900,rock:'Granite',orientation:['S'],grades:'5c–7a'},
+    {name:'Realp',lat:46.598,lon:8.505,alt:1550,rock:'Granite',orientation:['S','SW'],grades:'5b–6c'},
+    {name:'Nufenenpass',lat:46.478,lon:8.385,alt:2100,rock:'Granite',orientation:['S'],grades:'5c–7a'},
+    {name:'Piansecco',lat:46.538,lon:8.490,alt:1700,rock:'Granite',orientation:['S','SE'],grades:'5b–7b'},
+  ],
+  'voralpen':[
+    {name:'Engelberg (Brunnistöckli)',lat:46.820,lon:8.410,alt:1100,rock:'Limestone',orientation:['S','SW'],grades:'5b–7b'},
+    {name:'Melchsee-Frutt',lat:46.775,lon:8.270,alt:1900,rock:'Limestone',orientation:['S'],grades:'5c–7a'},
+    {name:'Planplatten',lat:46.765,lon:8.245,alt:2100,rock:'Limestone',orientation:['S','SE'],grades:'5b–6c'},
+    {name:'Erstfeld',lat:46.820,lon:8.650,alt:600,rock:'Granite',orientation:['S'],grades:'5c–7b'},
+    {name:'Attinghausen',lat:46.870,lon:8.615,alt:600,rock:'Limestone',orientation:['S','SW'],grades:'5b–7a'},
+    {name:'Brunni (Engelberg)',lat:46.810,lon:8.395,alt:1600,rock:'Limestone',orientation:['S','SE'],grades:'5a–7a'},
+    {name:'Grafenort',lat:46.840,lon:8.380,alt:600,rock:'Limestone',orientation:['S'],grades:'5c–7b'},
+    {name:'Stans',lat:46.960,lon:8.365,alt:500,rock:'Limestone',orientation:['S','SW'],grades:'5b–6c'},
+    {name:'Wolfenschiessen',lat:46.910,lon:8.395,alt:600,rock:'Limestone',orientation:['S'],grades:'5c–7a'},
+    {name:'Sarnen (Ewil)',lat:46.895,lon:8.235,alt:700,rock:'Limestone',orientation:['S','SE'],grades:'5b–7b'},
+  ]
+};
+
+let crags=[],forecastCache={},regionCache={},cragExploreCache={},currentSort='name',editingId=null,expandedDay={},expandedRegion=null;
 
 // ─── PERSISTENCE ───
 function loadCrags(){try{const s=localStorage.getItem(STORAGE_KEY);crags=s?JSON.parse(s):[...DEFAULT_CRAGS];if(!s)saveCragsToStorage()}catch(e){crags=[...DEFAULT_CRAGS]}}
@@ -462,11 +585,33 @@ function renderCards(){
 }
 
 // ─── RENDER EXPLORE ───
+function toggleRegion(regionId){
+  if(expandedRegion===regionId){expandedRegion=null}
+  else{
+    expandedRegion=regionId;
+    // Lazy-fetch crags for this region if not cached
+    const rCrags=REGION_CRAGS[regionId]||[];
+    const uncached=rCrags.filter(c=>!cragExploreCache[regionId+'_'+c.name]);
+    if(uncached.length)fetchRegionCrags(regionId);
+  }
+  renderExplore();
+}
+
+async function fetchRegionCrags(regionId){
+  const rCrags=REGION_CRAGS[regionId]||[];
+  await Promise.all(rCrags.map(async c=>{
+    const key=regionId+'_'+c.name;
+    if(cragExploreCache[key])return;
+    try{cragExploreCache[key]=await fetchDual(c.lat,c.lon)}
+    catch(e){cragExploreCache[key]={error:e.message}}
+  }));
+  renderExplore();
+}
+
 function renderExplore(){
   const grid=document.getElementById('exploreGrid');
   const sel=document.getElementById('exploreDaySelect');
 
-  // Build day options dynamically from first loaded region
   const anyRegion=Object.values(regionCache).find(r=>r&&!r.error&&(r.best||r.ecmwf));
   if(anyRegion&&sel.options.length<=1){
     const src=anyRegion.best||anyRegion.ecmwf;
@@ -481,7 +626,6 @@ function renderExplore(){
 
   const mode=sel.value;
 
-  // Build ranked data
   let ranked=REGIONS.map(r=>{
     const fc=regionCache[r.id];
     if(!fc||fc.error||(!fc.best&&!fc.ecmwf))return{...r,scores:[],bestScore:0,bestDay:'—',avgConf:'',error:fc?.error};
@@ -511,16 +655,54 @@ function renderExplore(){
     const pips=r.scores.map(s=>`<div class="region-day-pip" style="background:${scoreColorHex(s.score)}"></div>`).join('');
     const labels=r.scores.length?`<span>${new Date((regionCache[r.id].best||regionCache[r.id].ecmwf).daily.time[0]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'})}</span><span>${new Date((regionCache[r.id].best||regionCache[r.id].ecmwf).daily.time[r.scores.length-1]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'})}</span>`:'';
 
+    const isExpanded=expandedRegion===r.id;
+    let cragsHTML='';
+    if(isExpanded){
+      const rCrags=REGION_CRAGS[r.id]||[];
+      const scored=rCrags.map(c=>{
+        const key=r.id+'_'+c.name;
+        const fc=cragExploreCache[key];
+        let bestScore=null,bestDayLabel='';
+        if(fc&&!fc.error&&(fc.best||fc.ecmwf)){
+          const src=fc.best||fc.ecmwf;
+          let best=0,bestI=0;
+          src.daily.time.forEach((_,i)=>{
+            const s=blendedScore(fc,i).score;
+            if(s>best){best=s;bestI=i}
+          });
+          bestScore=best;
+          bestDayLabel=new Date(src.daily.time[bestI]+'T00:00:00').toLocaleDateString('en-US',{weekday:'short'});
+        }
+        return{...c,bestScore,bestDayLabel};
+      });
+      scored.sort((a,b)=>(b.bestScore??-1)-(a.bestScore??-1));
+
+      const cragItems=scored.map(c=>{
+        const sunFaces=['S','SE','SW','E','W'];
+        const orient=(c.orientation||[]).map(o=>`<span class="orient-chip ${sunFaces.includes(o)?'sun':''}" style="font-size:.5rem;padding:1px 4px">${o}</span>`).join(' ');
+        if(c.bestScore===null)return`<div class="rcrag"><div class="rcrag-left"><div class="rcrag-name">${c.name}</div><div class="rcrag-meta">${c.alt}m · ${c.rock} · ${c.grades} ${orient}</div></div><div class="rcrag-score"><div class="rcrag-score-num" style="color:var(--ink-ghost)">…</div></div></div>`;
+        const col=scoreColorHex(c.bestScore);
+        return`<div class="rcrag"><div class="rcrag-left"><div class="rcrag-name">${c.name}</div><div class="rcrag-meta">${c.alt}m · ${c.rock} · ${c.grades} ${orient}</div></div><div class="rcrag-score"><div class="rcrag-score-num" style="color:${col}">${c.bestScore}</div><div class="rcrag-score-label">${c.bestDayLabel}</div></div></div>`;
+      }).join('');
+
+      const allLoaded=scored.every(c=>c.bestScore!==null);
+      cragsHTML=allLoaded?`<div class="region-crags">${cragItems}</div>`:`<div class="region-crags">${cragItems}<div class="region-crags-loading">fetching forecasts…</div></div>`;
+    }
+
     return`<div class="region-card" style="animation-delay:${ri*.08}s">
-      <div class="region-header">
-        <span class="region-rank">${ri+1}</span>
-        <span class="region-name">${r.name}</span>
-        <div class="region-best"><div class="region-best-score" style="color:${scoreColorHex(r.bestScore)}">${r.bestScore}</div><div class="region-best-label">best · ${r.bestDay}</div></div>
+      <div class="region-toggle" onclick="toggleRegion('${r.id}')">
+        <div class="region-header">
+          <span class="region-rank">${ri+1}</span>
+          <span class="region-name">${r.name}</span>
+          <div class="region-best"><div class="region-best-score" style="color:${scoreColorHex(r.bestScore)}">${r.bestScore}</div><div class="region-best-label">best · ${r.bestDay}</div></div>
+        </div>
+        <div class="region-meta">${r.sub} · ${r.alt}m</div>
+        <div class="region-days">${pips}</div>
+        <div class="region-day-label">${labels}</div>
+        <div class="region-confidence">${r.avgConf}</div>
+        <div class="region-expand-hint">${isExpanded?'▲ collapse':'▼ tap for top crags'}</div>
       </div>
-      <div class="region-meta">${r.sub} · ${r.alt}m</div>
-      <div class="region-days">${pips}</div>
-      <div class="region-day-label">${labels}</div>
-      <div class="region-confidence">${r.avgConf}</div>
+      ${cragsHTML}
     </div>`;
   }).join('');
 }
@@ -550,7 +732,7 @@ async function fetchAllRegions(){
   if(!err){const t=new Date();setStatus('ok',`updated ${t.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false})}`)}
 }
 
-function refreshAll(){forecastCache={};regionCache={};expandedDay={};renderCards();renderExplore();fetchAllForecasts().then(()=>fetchAllRegions())}
+function refreshAll(){forecastCache={};regionCache={};cragExploreCache={};expandedDay={};expandedRegion=null;renderCards();renderExplore();fetchAllForecasts().then(()=>fetchAllRegions())}
 function setStatus(s,t){const d=document.getElementById('statusDot'),x=document.getElementById('statusText');d.className='status-dot';if(s==='loading')d.classList.add('loading');if(s==='error')d.classList.add('error');x.textContent=t}
 
 // ─── TABS ───
