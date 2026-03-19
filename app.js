@@ -1,55 +1,102 @@
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // BitWet — app.js
-// Application logic: scoring, API, rendering, UI
-// Depends on: data.js, icons.js
-// ═══════════════════════════════════════════════════
+// All logic: fetching, scoring, rendering, dark mode
+// ═══════════════════════════════════════════
 
-const STORAGE_KEY = 'bitWet_v1';
-const ORIENTATIONS = ['N','NE','E','SE','S','SW','W','NW'];
-const DAILY_VARS = 'temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunshine_duration,uv_index_max';
-const HOURLY_VARS = 'precipitation,wind_direction_10m';
-
-// ─── STATE ───
 let crags = [];
 let forecastCache = {};
-let regionCache = {};
-let cragExploreCache = {};
-let currentSort = 'score';
-let editingId = null;
-let expandedDay = {};
-let expandedRegion = null;
-let selectedOrientations = [];
+let exploreFcCache = {};
+let currentSort = 'weekend';
+let expandedDays = {};     // cragId -> dayIndex
+let expandedExplore = {};  // regionName -> { open: bool, crags: { cragKey -> open } }
+const STORAGE_KEY = 'bitWet_v1';
+const THEME_KEY = 'bitWet_theme';
 
-// ─── PERSISTENCE ───
-function loadCrags() {
-  try {
-    const s = localStorage.getItem(STORAGE_KEY);
-    crags = s ? JSON.parse(s) : [...DEFAULT_CRAGS];
-    if (!s) saveCragsToStorage();
-  } catch (e) { crags = [...DEFAULT_CRAGS]; }
+// ─── 10-STEP SCORE LABELS ───
+function scoreWord(s) {
+  if (s >= 95) return 'Send It';
+  if (s >= 85) return 'Atta Boy';
+  if (s >= 75) return 'Decent';
+  if (s >= 65) return 'Alright';
+  if (s >= 55) return 'Maybe';
+  if (s >= 45) return 'Meh';
+  if (s >= 35) return 'Bit Wet';
+  if (s >= 25) return 'Nicht Gut';
+  if (s >= 15) return 'Hopeless';
+  return 'Stay Home';
 }
-function saveCragsToStorage() { localStorage.setItem(STORAGE_KEY, JSON.stringify(crags)); }
 
-// ─── DUAL-MODEL FETCH ───
-async function fetchDual(lat, lon) {
-  const base = { latitude: lat, longitude: lon, daily: DAILY_VARS, hourly: HOURLY_VARS, timezone: 'Europe/Zurich', forecast_days: 7, past_days: 2 };
-  const urlBest = `https://api.open-meteo.com/v1/forecast?${new URLSearchParams(base)}`;
-  const urlECMWF = `https://api.open-meteo.com/v1/forecast?${new URLSearchParams({...base, models: 'ecmwf_ifs'})}`;
-  try {
-    const [rB, rE] = await Promise.all([fetch(urlBest), fetch(urlECMWF)]);
-    const best = rB.ok ? await rB.json() : null;
-    const ecmwf = rE.ok ? await rE.json() : null;
-    if (!best && !ecmwf) throw new Error('Both models failed');
-    return { best, ecmwf };
-  } catch (e) {
-    const sb = (window.self !== window.top) || (window.location.protocol === 'blob:');
-    if (sb || e.message?.includes('Failed to fetch') || e.name === 'TypeError')
-      throw new Error('Preview mode — open in browser');
-    throw e;
+// ─── THEME / DARK MODE ───
+function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved) {
+    document.documentElement.setAttribute('data-theme', saved);
+  } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.setAttribute('data-theme', 'dark');
   }
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+    if (!localStorage.getItem(THEME_KEY)) {
+      document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+    }
+  });
+}
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem(THEME_KEY, next);
 }
 
-// ─── SCORING (season-aware + drying time + wind shelter) ───
+// ─── STATUS ───
+function setStatus(state, text) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'status-dot ' + (state === 'ok' ? 'ok' : state === 'error' ? 'err' : '');
+  txt.textContent = text;
+}
+
+// ─── STORAGE ───
+function loadCrags() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) { try { crags = JSON.parse(raw); return; } catch(e) {} }
+  crags = DEFAULT_CRAGS.map(c => ({ ...c }));
+  saveCrags();
+}
+function saveCrags() { localStorage.setItem(STORAGE_KEY, JSON.stringify(crags)); }
+
+// ─── WEATHER FETCHING ───
+const API = 'https://api.open-meteo.com/v1/forecast';
+const HOURLY_VARS = 'precipitation,wind_direction_10m,weather_code,temperature_2m';
+const DAILY_VARS = 'temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,weather_code,sunshine_duration,uv_index_max';
+
+async function fetchForecast(lat, lon) {
+  const params = `latitude=${lat}&longitude=${lon}&daily=${DAILY_VARS}&hourly=${HOURLY_VARS}&timezone=auto&past_days=2&forecast_days=7`;
+  const [best, ecmwf] = await Promise.allSettled([
+    fetch(`${API}?${params}`).then(r => r.json()),
+    fetch(`${API}?${params}&models=ecmwf_ifs`).then(r => r.json()),
+  ]);
+  return {
+    best: best.status === 'fulfilled' && !best.value.error ? best.value : null,
+    ecmwf: ecmwf.status === 'fulfilled' && !ecmwf.value.error ? ecmwf.value : null,
+  };
+}
+
+async function fetchAllForecasts() {
+  setStatus('loading', 'updating...');
+  let ok = 0;
+  const tasks = crags.map(async c => {
+    try {
+      forecastCache[c.id] = await fetchForecast(c.lat, c.lon);
+      ok++;
+    } catch(e) { forecastCache[c.id] = { error: true }; }
+  });
+  await Promise.all(tasks);
+  const now = new Date();
+  setStatus(ok > 0 ? 'ok' : 'error', `updated ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`);
+  renderCards();
+}
+
+// ─── SCORING ENGINE ───
 function getSeasonProfile(ds) {
   const m = ds ? new Date(ds + 'T00:00:00').getMonth() : new Date().getMonth();
   if (m >= 11 || m <= 1) return { idealMin: 4, idealMax: 16 };
@@ -58,101 +105,72 @@ function getSeasonProfile(ds) {
   return { idealMin: 10, idealMax: 24 };
 }
 
-// Calculate hours since last significant rain (>0.1mm/h) looking back from start of given day
-// Uses hourly precipitation data from the forecast (which includes past_days:2)
 function calcDryingHours(fc, dayIndex) {
   const src = fc.best || fc.ecmwf;
   if (!src?.hourly?.precipitation || !src?.hourly?.time || !src?.daily?.time) return null;
-
   const dayStr = src.daily.time[dayIndex];
-  // Find the hourly index for 8:00 on this day (typical climbing start)
   const targetTime = dayStr + 'T08:00';
   const hourlyTimes = src.hourly.time;
   const targetIdx = hourlyTimes.findIndex(t => t >= targetTime);
   if (targetIdx < 0) return null;
-
-  // Walk backwards from target hour to find last rain >0.1mm
   const precip = src.hourly.precipitation;
   for (let i = targetIdx; i >= 0; i--) {
-    if (precip[i] > 0.1) {
-      return targetIdx - i; // hours since last rain
-    }
+    if (precip[i] > 0.1) return targetIdx - i;
   }
-  // No rain found in available data — very dry
-  return targetIdx > 0 ? targetIdx : 48; // cap at available data
+  return targetIdx > 0 ? targetIdx : 48;
 }
 
-// Get dominant wind direction for a given day (average of daytime hours 8-18)
 function getDayWindDirection(fc, dayIndex) {
   const src = fc.best || fc.ecmwf;
   if (!src?.hourly?.wind_direction_10m || !src?.hourly?.time || !src?.daily?.time) return null;
-
   const dayStr = src.daily.time[dayIndex];
   const startTime = dayStr + 'T08:00';
   const endTime = dayStr + 'T18:00';
   const times = src.hourly.time;
   const dirs = src.hourly.wind_direction_10m;
-
-  // Collect wind directions during climbing hours
   let sinSum = 0, cosSum = 0, count = 0;
   for (let i = 0; i < times.length; i++) {
     if (times[i] >= startTime && times[i] <= endTime && dirs[i] != null) {
       const rad = dirs[i] * Math.PI / 180;
-      sinSum += Math.sin(rad);
-      cosSum += Math.cos(rad);
-      count++;
+      sinSum += Math.sin(rad); cosSum += Math.cos(rad); count++;
     }
   }
   if (count === 0) return null;
-  // Circular mean
   let avg = Math.atan2(sinSum / count, cosSum / count) * 180 / Math.PI;
   if (avg < 0) avg += 360;
   return Math.round(avg);
 }
 
-// Convert compass direction string to degrees
 function orientationToDeg(dir) {
   const map = { 'N': 0, 'NE': 45, 'E': 90, 'SE': 135, 'S': 180, 'SW': 225, 'W': 270, 'NW': 315 };
   return map[dir] ?? null;
 }
 
-// Calculate wind shelter factor: how exposed is this wall to the wind?
-// Returns: 'sheltered' (wind from behind wall), 'crosswind', or 'exposed' (wind hitting face)
 function calcWindShelter(windDeg, orientations) {
   if (windDeg == null || !orientations?.length) return { label: 'unknown', penalty: 0 };
-
-  // For each wall face, check angle difference to wind direction
-  // Wind hitting the face directly = exposed (wind direction ≈ opposite of wall orientation)
-  // Wall faces S (180°), wind from N (0°) = wind hitting face directly
-  let minExposure = 180; // worst case = no exposure
-
+  let minExposure = 180;
   for (const dir of orientations) {
     const faceDeg = orientationToDeg(dir);
     if (faceDeg == null) continue;
-
-    // The wall "faces" faceDeg, meaning wind hitting it comes from the opposite direction
     const exposedWindDir = (faceDeg + 180) % 360;
     let angleDiff = Math.abs(windDeg - exposedWindDir);
     if (angleDiff > 180) angleDiff = 360 - angleDiff;
     minExposure = Math.min(minExposure, angleDiff);
   }
-
-  if (minExposure <= 30) return { label: 'exposed', penalty: -12 };
-  if (minExposure <= 60) return { label: 'crosswind', penalty: -4 };
-  if (minExposure >= 120) return { label: 'sheltered', penalty: 5 };
-  return { label: 'partial shelter', penalty: 0 };
+  if (minExposure <= 30) return { label: 'Exposed', penalty: -12 };
+  if (minExposure <= 60) return { label: 'Crosswind', penalty: -4 };
+  if (minExposure >= 120) return { label: 'Sheltered', penalty: 5 };
+  return { label: 'Partial', penalty: 0 };
 }
 
-// Drying time label for display
 function dryingLabel(hours) {
   if (hours == null) return '—';
   if (hours >= 48) return '48h+ (dry)';
   if (hours >= 24) return Math.round(hours) + 'h (good)';
   if (hours >= 12) return Math.round(hours) + 'h (ok)';
-  if (hours >= 6) return Math.round(hours) + 'h (damp risk)';
-  return Math.round(hours) + 'h (wet!)';
+  if (hours >= 6) return Math.round(hours) + 'h (damp)';
+  return Math.round(hours) + 'h (wet)';
 }
-
 function dryingClass(hours) {
   if (hours == null) return '';
   if (hours >= 24) return '';
@@ -166,10 +184,8 @@ function computeScore(d, ds, dryHours, windShelter) {
   const p = d.precipitation_sum || 0, pp = d.precipitation_probability_max || 0;
   if (p > 5) s -= 60; else if (p > 2) s -= 40; else if (p > 0.5) s -= 20; else if (p > 0) s -= 8;
   s -= (pp / 100) * 15;
-
   const w = d.wind_speed_10m_max || 0, g = d.wind_gusts_10m_max || 0;
   if (g > 60) s -= 35; else if (g > 40) s -= 20; else if (w > 30) s -= 15; else if (w > 20) s -= 5;
-
   const sn = getSeasonProfile(ds);
   const t = d.temperature_2m_max;
   if (t !== undefined) {
@@ -181,25 +197,16 @@ function computeScore(d, ds, dryHours, windShelter) {
     else if (t > sn.idealMax) s -= 4;
     else s += 3;
   }
-
   const wc = d.weather_code || 0;
   if (wc >= 95) s -= 30; else if (wc >= 71) s -= 25; else if (wc >= 61) s -= 20; else if (wc >= 51) s -= 10; else if (wc >= 45) s -= 8;
-
-  // Phase 2: Drying time penalty
   if (dryHours != null) {
     if (dryHours < 3) s -= 20;
     else if (dryHours < 6) s -= 12;
     else if (dryHours < 12) s -= 6;
     else if (dryHours < 24) s -= 2;
-    // Bonus for very dry conditions
     else if (dryHours >= 48 && p === 0) s += 2;
   }
-
-  // Phase 2: Wind shelter adjustment
-  if (windShelter) {
-    s += windShelter.penalty;
-  }
-
+  if (windShelter) s += windShelter.penalty;
   return Math.max(0, Math.min(100, Math.round(s)));
 }
 
@@ -220,12 +227,9 @@ function extractDay(fc, i) {
 function blendedScore(fc, di, orientation) {
   const src = fc.best || fc.ecmwf;
   const ds = src?.daily?.time?.[di] || null;
-
-  // Phase 2: compute drying time and wind shelter
   const dryHours = calcDryingHours(fc, di);
   const windDeg = getDayWindDirection(fc, di);
   const windShelter = calcWindShelter(windDeg, orientation);
-
   const bD = fc.best ? extractDay(fc.best, di) : null;
   const eD = fc.ecmwf ? extractDay(fc.ecmwf, di) : null;
   const sB = bD ? computeScore(bD, ds, dryHours, windShelter) : null;
@@ -241,88 +245,225 @@ function blendedScore(fc, di, orientation) {
 // ─── HELPERS ───
 function scorePillClass(s) { return s >= 80 ? 's-great' : s >= 60 ? 's-good' : s >= 40 ? 's-ok' : s >= 20 ? 's-poor' : 's-bad'; }
 function scoreColorHex(s) { return s >= 80 ? '#5BAD6A' : s >= 60 ? '#7EC98A' : s >= 40 ? '#D4A843' : s >= 20 ? '#E8725A' : '#9A9490'; }
-function scoreWord(s) { return s >= 80 ? 'Send it' : s >= 60 ? 'Good' : s >= 40 ? 'Maybe' : s >= 20 ? 'Nicht Gut' : 'Rest day'; }
-function confTag(c) { return c === 'high' ? '' : c === 'medium' ? '<div class="conf-tag">uncertain</div>' : '<div class="conf-tag">models split</div>'; }
-function getBestBlended(id) { const fc = forecastCache[id]; if (!fc || fc.error) return -1; const src = fc.best || fc.ecmwf; if (!src?.daily) return -1; const c = crags.find(x => x.id === id); const orient = c?.orientation || []; return Math.max(...src.daily.time.map((_, i) => blendedScore(fc, i, orient).score)); }
+function confTag(c) { return c === 'high' ? '' : c === 'medium' ? '<div class="conf-tag">uncertain</div>' : c === 'low' ? '<div class="conf-tag">models split</div>' : ''; }
 
-// ─── RENDER CRAGS ───
+function getBestBlended(id) {
+  const fc = forecastCache[id]; if (!fc || fc.error) return -1;
+  const src = fc.best || fc.ecmwf; if (!src?.daily) return -1;
+  const c = crags.find(x => x.id === id);
+  const orient = c?.orientation || [];
+  return Math.max(...src.daily.time.map((_, i) => blendedScore(fc, i, orient).score));
+}
+
+// Weekend score: best score across Fri evening + Sat + Sun
+function getWeekendScore(id) {
+  const fc = forecastCache[id]; if (!fc || fc.error) return -1;
+  const src = fc.best || fc.ecmwf; if (!src?.daily) return -1;
+  const c = crags.find(x => x.id === id);
+  const orient = c?.orientation || [];
+  let best = -1;
+  const today = new Date();
+  src.daily.time.forEach((ds, i) => {
+    const d = new Date(ds + 'T00:00:00');
+    const dow = d.getDay(); // 0=Sun, 5=Fri, 6=Sat
+    if (dow === 5 || dow === 6 || dow === 0) {
+      const s = blendedScore(fc, i, orient).score;
+      if (s > best) best = s;
+    }
+  });
+  return best;
+}
+
+function getTodayScore(id) {
+  const fc = forecastCache[id]; if (!fc || fc.error) return -1;
+  const src = fc.best || fc.ecmwf; if (!src?.daily) return -1;
+  const c = crags.find(x => x.id === id);
+  const orient = c?.orientation || [];
+  const today = new Date().toISOString().slice(0, 10);
+  const idx = src.daily.time.indexOf(today);
+  if (idx < 0) return blendedScore(fc, 0, orient).score;
+  return blendedScore(fc, idx, orient).score;
+}
+
+// ─── TIME-OF-DAY BREAKDOWN ───
+function getTimeSlots(fc, dayIndex) {
+  const src = fc.best || fc.ecmwf;
+  if (!src?.hourly?.time || !src?.daily?.time) return null;
+  const dayStr = src.daily.time[dayIndex];
+  const slots = [
+    { label: 'Sunrise', start: 'T05:00', end: 'T08:00' },
+    { label: 'Morning', start: 'T08:00', end: 'T11:00' },
+    { label: 'Midday', start: 'T11:00', end: 'T14:00' },
+    { label: 'Afternoon', start: 'T14:00', end: 'T17:00' },
+    { label: 'Evening', start: 'T17:00', end: 'T20:00' },
+  ];
+  const times = src.hourly.time;
+  const precip = src.hourly.precipitation;
+  const wxCodes = src.hourly.weather_code;
+  const temps = src.hourly.temperature_2m;
+
+  return slots.map(slot => {
+    const s = dayStr + slot.start;
+    const e = dayStr + slot.end;
+    let totalPrecip = 0, maxWx = 0, count = 0, tempSum = 0;
+    for (let i = 0; i < times.length; i++) {
+      if (times[i] >= s && times[i] < e) {
+        totalPrecip += (precip?.[i] || 0);
+        if ((wxCodes?.[i] || 0) > maxWx) maxWx = wxCodes[i];
+        tempSum += (temps?.[i] || 0);
+        count++;
+      }
+    }
+    // Quick score for time slot
+    let slotScore = 100;
+    if (totalPrecip > 2) slotScore -= 50;
+    else if (totalPrecip > 0.5) slotScore -= 25;
+    else if (totalPrecip > 0) slotScore -= 10;
+    if (maxWx >= 95) slotScore -= 30;
+    else if (maxWx >= 61) slotScore -= 15;
+    else if (maxWx >= 51) slotScore -= 8;
+    slotScore = Math.max(0, Math.min(100, slotScore));
+    return {
+      label: slot.label,
+      wx: wxLabel(maxWx),
+      wxCode: maxWx,
+      score: Math.round(slotScore),
+      precip: totalPrecip.toFixed(1),
+    };
+  });
+}
+
+// Trend: compare first half vs second half of day
+function getDayTrend(slots) {
+  if (!slots || slots.length < 4) return 'Stable';
+  const first = (slots[0].score + slots[1].score) / 2;
+  const second = (slots[3].score + slots[4].score) / 2;
+  const diff = second - first;
+  if (diff > 15) return 'Improving';
+  if (diff < -15) return 'Getting worse';
+  return 'Stable';
+}
+
+// ─── SORT ───
+function setSort(btn) {
+  currentSort = btn.dataset.sort;
+  document.querySelectorAll('.sort-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderCards();
+}
+
+function sortedCrags() {
+  const list = [...crags];
+  switch (currentSort) {
+    case 'weekend':
+      return list.sort((a, b) => getWeekendScore(b.id) - getWeekendScore(a.id));
+    case 'score':
+      return list.sort((a, b) => getTodayScore(b.id) - getTodayScore(a.id));
+    case 'name':
+      return list.sort((a, b) => a.name.localeCompare(b.name));
+    case 'region':
+      return list.sort((a, b) => a.region.localeCompare(b.region) || a.name.localeCompare(b.name));
+    default:
+      return list;
+  }
+}
+
+// ─── RENDER CARDS ───
 function renderCards() {
   const grid = document.getElementById('cragGrid');
-  let sorted = [...crags];
-  if (currentSort === 'score') sorted.sort((a, b) => getBestBlended(b.id) - getBestBlended(a.id));
-  else if (currentSort === 'region') sorted.sort((a, b) => (a.region || '').localeCompare(b.region || ''));
-  else sorted.sort((a, b) => a.name.localeCompare(b.name));
-
-  if (!sorted.length) { grid.innerHTML = '<div class="empty-state">No crags yet. Tap Add One.</div>'; return; }
-  const today = new Date().toISOString().slice(0, 10);
+  if (!grid) return;
+  const sorted = sortedCrags();
 
   grid.innerHTML = sorted.map((c, ci) => {
     const fc = forecastCache[c.id];
-    const metaParts = [c.region || '', c.alt ? c.alt + 'm' : '', c.rock || '', (c.orientation || []).join(' · ')].filter(Boolean);
-    const metaHTML = metaParts.map(p => `<span>${p}</span>`).join('');
+    const src = fc ? (fc.best || fc.ecmwf) : null;
+    const metaParts = [c.region, c.alt ? c.alt + 'm' : '', c.rock, c.orientation?.length ? c.orientation.join(' · ') : ''].filter(Boolean);
+    const metaHTML = metaParts.map(m => `<span>${m}</span>`).join('');
+    const expIdx = expandedDays[c.id] ?? null;
 
-    let fHTML;
-    if (!fc) fHTML = `<div class="forecast-area"><div class="forecast-loading">${'<div class="day-skel"></div>'.repeat(4)}</div></div>`;
-    else if (fc.error) fHTML = `<div class="forecast-area"><div class="forecast-error">${fc.error}</div></div>`;
-    else {
-      const src = fc.best || fc.ecmwf;
-      if (!src?.daily) { fHTML = `<div class="forecast-area"><div class="forecast-error">No data</div></div>`; }
-      else {
-        const expIdx = expandedDay[c.id];
-        const cells = src.daily.time.map((t, di) => {
-          const dt = new Date(t + 'T00:00:00');
-          const bl = blendedScore(fc, di, c.orientation);
-          const dd = extractDay(fc.best || fc.ecmwf, di);
-          const isExp = expIdx === di;
-          const dayLabel = dt.toLocaleDateString('en-US', { weekday: 'short' }).toUpperCase() + ' ' + dt.getDate();
-          return `<div class="fday ${isExp ? 'active-day' : ''}" onclick="toggleExpand('${c.id}',${di})">
-            <div class="fday-label">${dayLabel}</div>
-            <div class="fday-icon">${wxSVG(dd.weather_code)}</div>
-            <div class="fday-wx-label">${wxLabel(dd.weather_code)}</div>
-            <div class="fday-temp">[ ${dd.temperature_2m_min != null ? Math.round(dd.temperature_2m_min) : '?'}° / ${dd.temperature_2m_max != null ? Math.round(dd.temperature_2m_max) : '?'}° ]</div>
-            <div class="score-pill ${scorePillClass(bl.score)}">${bl.score}</div>
-            ${confTag(bl.confidence)}
-          </div>`;
-        }).join('');
+    let fHTML = '';
+    if (!fc) {
+      fHTML = '<div class="card-loading">fetching forecast</div>';
+    } else if (fc.error || !src?.daily) {
+      fHTML = '<div class="card-loading">no data available</div>';
+    } else {
+      const cells = src.daily.time.map((ds, di) => {
+        const dd = extractDay(src, di);
+        const bl = blendedScore(fc, di, c.orientation);
+        const dayName = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+        const dayNum = new Date(ds + 'T00:00:00').getDate();
+        const isSelected = expIdx === di;
+        const isFaded = expIdx != null && !isSelected;
+        return `<div class="fday ${isSelected ? 'selected' : ''} ${isFaded ? 'faded' : ''}" onclick="toggleDay('${c.id}',${di})">
+          <div class="fday-name">${dayName} ${dayNum}</div>
+          <div class="fday-icon">${wxSVG(dd.weather_code)}</div>
+          <div class="fday-wx-label">${wxLabel(dd.weather_code)}</div>
+          <div class="fday-temp">[ ${dd.temperature_2m_min != null ? Math.round(dd.temperature_2m_min) : '?'}° / ${dd.temperature_2m_max != null ? Math.round(dd.temperature_2m_max) : '?'}° ]</div>
+          <div class="score-pill ${scorePillClass(bl.score)}">${bl.score}</div>
+          ${confTag(bl.confidence)}
+        </div>`;
+      }).join('');
 
-        let detailHTML = '';
-        if (expIdx != null && src.daily.time[expIdx]) {
-          const dd = extractDay(fc.best || fc.ecmwf, expIdx);
-          const bl = blendedScore(fc, expIdx, c.orientation);
-          const p = dd.precipitation_sum || 0, pp = dd.precipitation_probability_max || 0;
-          const w = dd.wind_speed_10m_max || 0, g = dd.wind_gusts_10m_max || 0;
-          const sh = dd.sunshine_duration ? (dd.sunshine_duration / 3600).toFixed(2) : '—';
-          const uv = dd.uv_index_max != null ? dd.uv_index_max.toFixed(0) : '—';
-          const wc = g > 50 ? 'bad' : g > 35 || w > 25 ? 'warn' : '';
-          const rc = p > 0.5 ? 'rain' : '';
-          const dl = new Date(src.daily.time[expIdx] + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-          const expDateStr = src.daily.time[expIdx];
+      let detailHTML = '';
+      if (expIdx != null && src.daily.time[expIdx]) {
+        const dd = extractDay(src, expIdx);
+        const bl = blendedScore(fc, expIdx, c.orientation);
+        const p = dd.precipitation_sum || 0, pp = dd.precipitation_probability_max || 0;
+        const w = dd.wind_speed_10m_max || 0, g = dd.wind_gusts_10m_max || 0;
+        const sh = dd.sunshine_duration ? (dd.sunshine_duration / 3600).toFixed(1) : '—';
+        const uv = dd.uv_index_max != null ? dd.uv_index_max.toFixed(0) : '—';
+        const wc = g > 50 ? 'bad' : g > 35 || w > 25 ? 'warn' : '';
+        const rc = p > 0.5 ? 'rain' : '';
+        const dl = new Date(src.daily.time[expIdx] + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+        const expDateStr = src.daily.time[expIdx];
 
-          let modelHTML = '';
-          if (fc.best && fc.ecmwf) {
-            const db = extractDay(fc.best, expIdx), de = extractDay(fc.ecmwf, expIdx);
-            modelHTML = `<div class="model-row"><div class="model-box"><strong>Best-match (local)</strong>Rain: ${(db.precipitation_sum || 0).toFixed(1)}mm · ${db.precipitation_probability_max || 0}%<br>Wind: ${Math.round(db.wind_speed_10m_max || 0)} Km/h<br>Score: ${computeScore(db, expDateStr, bl.dryHours, bl.windShelter)}</div><div class="model-box"><strong>ECMWF IFS</strong>Rain: ${(de.precipitation_sum || 0).toFixed(1)}mm · ${de.precipitation_probability_max || 0}%<br>Wind: ${Math.round(de.wind_speed_10m_max || 0)} Km/h<br>Score: ${computeScore(de, expDateStr, bl.dryHours, bl.windShelter)}</div></div>`;
-          }
+        // Time-of-day slots
+        const slots = getTimeSlots(fc, expIdx);
+        const trend = getDayTrend(slots);
+        const trendClass = trend === 'Improving' ? 'improving' : trend === 'Getting worse' ? 'worsening' : '';
 
-          detailHTML = `<div class="detail-panel">
-            <span class="detail-date">${dl}</span><span class="detail-score-label">Climbability score: ${bl.score} ${scoreWord(bl.score)}</span>
-            <div class="detail-grid">
-              <div class="detail-item"><label>Temperature</label><span>${dd.temperature_2m_min != null ? Math.round(dd.temperature_2m_min) : '?'}° / ${dd.temperature_2m_max != null ? Math.round(dd.temperature_2m_max) : '?'}°</span></div>
-              <div class="detail-item"><label>Rain</label><span class="${rc}">${p.toFixed(1)}mm (${pp}%)</span></div>
-              <div class="detail-item"><label>Wind</label><span class="${wc}">${Math.round(w)} Km/h</span></div>
-              <div class="detail-item"><label>Gusts</label><span class="${wc}">${Math.round(g)} Km/h</span></div>
-              <div class="detail-item"><label>Sunshine</label><span>${sh} h</span></div>
-              <div class="detail-item"><label>UV Index</label><span>${uv}</span></div>
-              <div class="detail-item"><label>Drying time</label><span class="${dryingClass(bl.dryHours)}">${dryingLabel(bl.dryHours)}</span></div>
-              <div class="detail-item"><label>Wind dir</label><span>${bl.windDeg != null ? bl.windDeg + '°' : '—'}</span></div>
-              <div class="detail-item"><label>Shelter</label><span class="${bl.windShelter?.label === 'exposed' ? 'bad' : bl.windShelter?.label === 'crosswind' ? 'warn' : ''}">${bl.windShelter?.label || '—'}</span></div>
-            </div>${modelHTML}
-          </div>`;
+        let slotsHTML = '';
+        if (slots) {
+          slotsHTML = `<div class="detail-times">` +
+            slots.map(sl =>
+              `<div class="detail-time-row">
+                <span class="detail-time-label">${sl.label}</span>
+                <span class="detail-time-wx">${sl.wx} <span class="detail-time-score">(${sl.score})</span></span>
+              </div>`
+            ).join('') + `</div>`;
         }
-        fHTML = `<div class="forecast-area"><div class="forecast-grid">${cells}</div>${detailHTML}</div>`;
+
+        // Model comparison
+        let modelHTML = '';
+        if (fc.best && fc.ecmwf) {
+          const db = extractDay(fc.best, expIdx), de = extractDay(fc.ecmwf, expIdx);
+          modelHTML = `<div class="model-row"><div class="model-box"><strong>Best-match</strong>Rain: ${(db.precipitation_sum || 0).toFixed(1)}mm · ${db.precipitation_probability_max || 0}%<br>Wind: ${Math.round(db.wind_speed_10m_max || 0)} Km/h<br>Score: ${computeScore(db, expDateStr, bl.dryHours, bl.windShelter)}</div><div class="model-box"><strong>ECMWF IFS</strong>Rain: ${(de.precipitation_sum || 0).toFixed(1)}mm · ${de.precipitation_probability_max || 0}%<br>Wind: ${Math.round(de.wind_speed_10m_max || 0)} Km/h<br>Score: ${computeScore(de, expDateStr, bl.dryHours, bl.windShelter)}</div></div>`;
+        }
+
+        detailHTML = `<div class="detail-panel">
+          <div class="detail-header">
+            <span class="detail-date">${dl}</span>
+          </div>
+          <div class="detail-verdict">${scoreWord(bl.score)}</div>
+          ${slotsHTML}
+          <div class="detail-stats">
+            <div class="detail-stat"><div class="detail-stat-label">Wind</div><div class="detail-stat-val ${wc}">${Math.round(w)} Km/h</div></div>
+            <div class="detail-stat"><div class="detail-stat-label">Wind Dir.</div><div class="detail-stat-val">${bl.windDeg != null ? bl.windDeg + '° (' + windDirLabel(bl.windDeg) + ')' : '—'}</div></div>
+            <div class="detail-stat"><div class="detail-stat-label">Shelter</div><div class="detail-stat-val ${bl.windShelter?.label === 'Exposed' ? 'bad' : bl.windShelter?.label === 'Crosswind' ? 'warn' : ''}">${bl.windShelter?.label || '—'}</div></div>
+            <div class="detail-stat"><div class="detail-stat-label">Temperature</div><div class="detail-stat-val">${dd.temperature_2m_min != null ? Math.round(dd.temperature_2m_min) : '?'}° / ${dd.temperature_2m_max != null ? Math.round(dd.temperature_2m_max) : '?'}°</div></div>
+            <div class="detail-stat"><div class="detail-stat-label">UV Index</div><div class="detail-stat-val">${uv}</div></div>
+            <div class="detail-stat"><div class="detail-stat-label">Sunshine</div><div class="detail-stat-val">${sh} h</div></div>
+            <div class="detail-stat"><div class="detail-stat-label">Rain</div><div class="detail-stat-val ${rc}">${p.toFixed(1)}mm (${pp}%)</div></div>
+            <div class="detail-stat"><div class="detail-stat-label">Drying Time</div><div class="detail-stat-val ${dryingClass(bl.dryHours)}">${dryingLabel(bl.dryHours)}</div></div>
+          </div>
+          <div class="detail-trend ${trendClass}">${trend}</div>
+          ${modelHTML}
+        </div>`;
       }
+      fHTML = `<div class="forecast-area"><div class="forecast-grid">${cells}</div>${detailHTML}</div>`;
     }
-    return `<div class="crag-card" style="animation-delay:${ci * 0.08}s">
+
+    return `<div class="crag-card" style="animation-delay:${ci * 0.06}s">
       <div class="card-head">
         <div class="card-head-row">
           <div class="crag-name">${c.name}</div>
@@ -330,243 +471,280 @@ function renderCards() {
           <div class="card-actions"><button class="card-act" onclick="editCrag('${c.id}')">✎</button><button class="card-act" onclick="removeCrag('${c.id}')">✕</button></div>
         </div>
       </div>
+      <hr class="card-hr">
       ${c.notes ? `<div class="card-notes">${c.notes}</div>` : ''}
       ${fHTML}</div>`;
   }).join('');
 }
 
-// ─── EXPLORE ───
-function toggleExpand(id, di) { expandedDay[id] = expandedDay[id] === di ? null : di; renderCards(); }
-
-function toggleRegion(rid) {
-  if (expandedRegion === rid) expandedRegion = null;
-  else {
-    expandedRegion = rid;
-    const rc = REGION_CRAGS[rid] || [];
-    if (rc.some(c => !cragExploreCache[rid + '_' + c.name])) fetchRegionCrags(rid);
-  }
-  renderExplore();
+function windDirLabel(deg) {
+  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+  return dirs[Math.round(deg / 45) % 8];
 }
 
-async function fetchRegionCrags(rid) {
-  const rc = REGION_CRAGS[rid] || [];
-  await Promise.all(rc.map(async c => {
-    const k = rid + '_' + c.name;
-    if (cragExploreCache[k]) return;
-    try { cragExploreCache[k] = await fetchDual(c.lat, c.lon); }
-    catch (e) { cragExploreCache[k] = { error: e.message }; }
-  }));
+function toggleDay(cragId, dayIdx) {
+  if (expandedDays[cragId] === dayIdx) {
+    delete expandedDays[cragId];
+  } else {
+    expandedDays[cragId] = dayIdx;
+  }
+  renderCards();
+}
+
+// ─── EXPLORE ───
+async function fetchAllRegions() {
+  for (const region of REGIONS) {
+    const crgs = REGION_CRAGS[region] || [];
+    for (const rc of crgs) {
+      const key = region + ':' + rc.name;
+      if (exploreFcCache[key]) continue;
+      try {
+        exploreFcCache[key] = await fetchForecast(rc.lat, rc.lon);
+      } catch(e) { exploreFcCache[key] = { error: true }; }
+    }
+  }
   renderExplore();
 }
 
 function renderExplore() {
   const grid = document.getElementById('exploreGrid');
-  const sel = document.getElementById('exploreDaySelect');
-  const any = Object.values(regionCache).find(r => r && !r.error && (r.best || r.ecmwf));
+  if (!grid) return;
+  const selVal = document.getElementById('exploreDaySelect').value;
 
-  if (any && sel.options.length <= 1) {
-    const src = any.best || any.ecmwf;
-    if (src?.daily?.time) {
-      sel.innerHTML = '<option value="best">best day (7-day)</option>';
-      src.daily.time.forEach((t, i) => {
-        const dt = new Date(t + 'T00:00:00');
-        sel.innerHTML += `<option value="${i}">${dt.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</option>`;
-      });
+  // Fill day selector if empty
+  const sel = document.getElementById('exploreDaySelect');
+  if (sel.options.length <= 1) {
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(); d.setDate(d.getDate() + i);
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      sel.appendChild(opt);
     }
   }
 
-  const mode = sel.value;
-  let ranked = REGIONS.map(r => {
-    const fc = regionCache[r.id];
-    if (!fc || fc.error || (!fc.best && !fc.ecmwf)) return { ...r, scores: [], bestScore: 0, bestDay: '—', avgConf: '', error: fc?.error };
-    const src = fc.best || fc.ecmwf;
-    const scores = []; for (let i = 0; i < src.daily.time.length; i++) scores.push(blendedScore(fc, i, []));
-    let ss; if (mode === 'best') ss = Math.max(...scores.map(s => s.score)); else { const di = parseInt(mode); ss = scores[di] ? scores[di].score : 0; }
-    const bi = scores.reduce((b, s, i) => s.score > scores[b].score ? i : b, 0);
-    const bd = new Date(src.daily.time[bi] + 'T00:00:00');
-    return { ...r, scores, sortScore: ss, bestScore: scores[bi].score, bestDay: bd.toLocaleDateString('en-US', { weekday: 'short', day: 'numeric' }), avgConf: scores.some(s => s.confidence === 'low') ? 'some disagreement' : scores.some(s => s.confidence === 'medium') ? 'mostly aligned' : 'models agree' };
-  });
-  ranked.sort((a, b) => (b.sortScore || 0) - (a.sortScore || 0));
+  grid.innerHTML = REGIONS.map(region => {
+    const crgs = REGION_CRAGS[region] || [];
+    const isOpen = expandedExplore[region]?.open;
 
-  grid.innerHTML = ranked.map((r, ri) => {
-    if (r.error) return `<div class="region-card" style="animation-delay:${ri * 0.06}s"><div class="region-toggle"><div class="region-header"><span class="region-rank">${ri + 1}</span><span class="region-name">${r.name}</span></div><div class="forecast-error">${r.error}</div></div></div>`;
-    if (!r.scores.length) return `<div class="region-card" style="animation-delay:${ri * 0.06}s"><div class="region-toggle"><div class="region-header"><span class="region-rank">${ri + 1}</span><span class="region-name">${r.name}</span></div><div style="padding:8px 28px;font-size:.75rem;color:var(--ink-faint)">Loading…</div></div></div>`;
+    // Region best score
+    let regionBest = -1;
+    crgs.forEach(rc => {
+      const key = region + ':' + rc.name;
+      const fc = exploreFcCache[key];
+      if (!fc || fc.error) return;
+      const src = fc.best || fc.ecmwf;
+      if (!src?.daily) return;
+      src.daily.time.forEach((_, di) => {
+        if (selVal !== 'best' && di !== parseInt(selVal)) return;
+        const s = blendedScore(fc, di, rc.orientation || []).score;
+        if (s > regionBest) regionBest = s;
+      });
+    });
 
-    const pips = r.scores.map(s => `<div class="region-pip" style="background:${scoreColorHex(s.score)}"></div>`).join('');
-    const src2 = regionCache[r.id].best || regionCache[r.id].ecmwf;
-    const labels = `<span>${new Date(src2.daily.time[0] + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}</span><span>${new Date(src2.daily.time[r.scores.length - 1] + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}</span>`;
-    const isExp = expandedRegion === r.id;
+    const badge = regionBest >= 0
+      ? `<span class="region-score-badge ${scorePillClass(regionBest)}">${regionBest}</span>`
+      : '';
 
-    let cHTML = '';
-    if (isExp) {
-      const rc = REGION_CRAGS[r.id] || [];
-      const sc = rc.map(c => {
-        const k = r.id + '_' + c.name;
-        const fc = cragExploreCache[k];
-        let bs = null, bd = '';
-        if (fc && !fc.error && (fc.best || fc.ecmwf)) {
-          const s = fc.best || fc.ecmwf;
-          let b = 0, bi = 0;
-          s.daily.time.forEach((_, i) => { const v = blendedScore(fc, i, c.orientation || []).score; if (v > b) { b = v; bi = i; } });
-          bs = b; bd = new Date(s.daily.time[bi] + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+    // Crag list
+    let cragsHTML = '';
+    if (isOpen) {
+      cragsHTML = crgs.map(rc => {
+        const key = region + ':' + rc.name;
+        const fc = exploreFcCache[key];
+        const cragOpen = expandedExplore[region]?.crags?.[rc.name];
+        let scoreHTML = '';
+        let detailHTML = '';
+
+        if (fc && !fc.error) {
+          const src = fc.best || fc.ecmwf;
+          if (src?.daily) {
+            // Mini forecast row
+            const scores = src.daily.time.map((ds, di) => {
+              const bl = blendedScore(fc, di, rc.orientation || []);
+              const dayName = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+              return `<span style="color:${scoreColorHex(bl.score)};font-weight:700">${dayName} ${bl.score}</span>`;
+            }).slice(0, 4).join(' · ');
+            scoreHTML = `<div style="font-family:var(--font-data);font-size:10px;margin-top:4px">${scores}</div>`;
+
+            if (cragOpen) {
+              const cells = src.daily.time.map((ds, di) => {
+                const dd = extractDay(src, di);
+                const bl = blendedScore(fc, di, rc.orientation || []);
+                const dayName = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+                const dayNum = new Date(ds + 'T00:00:00').getDate();
+                return `<div class="fday">
+                  <div class="fday-name">${dayName} ${dayNum}</div>
+                  <div class="fday-icon">${wxSVG(dd.weather_code)}</div>
+                  <div class="fday-wx-label">${wxLabel(dd.weather_code)}</div>
+                  <div class="fday-temp">[ ${dd.temperature_2m_min != null ? Math.round(dd.temperature_2m_min) : '?'}° / ${dd.temperature_2m_max != null ? Math.round(dd.temperature_2m_max) : '?'}° ]</div>
+                  <div class="score-pill ${scorePillClass(bl.score)}">${bl.score}</div>
+                </div>`;
+              }).join('');
+
+              const alreadyAdded = crags.some(uc => uc.name === rc.name && Math.abs(uc.lat - rc.lat) < 0.01);
+              const addBtn = alreadyAdded
+                ? `<button class="add-to-usuals-btn" disabled style="opacity:0.4;cursor:default">Already in Usuals</button>`
+                : `<button class="add-to-usuals-btn" onclick="addExploreToUsuals('${region}','${rc.name.replace(/'/g,"\\'")}')">+ Add to Usuals</button>`;
+
+              detailHTML = `<div class="explore-crag-detail open">
+                <div class="forecast-area"><div class="forecast-grid">${cells}</div></div>
+                ${addBtn}
+              </div>`;
+            }
+          }
+        } else if (!fc) {
+          scoreHTML = '<div style="font-family:var(--font-data);font-size:10px;color:var(--ink-faint);margin-top:4px">loading...</div>';
         }
-        return { ...c, bs, bd };
-      }).sort((a, b) => (b.bs ?? -1) - (a.bs ?? -1));
 
-      cHTML = `<div class="region-crags">${sc.map(c =>
-        c.bs === null
-          ? `<div class="rcrag"><div><div class="rcrag-name">${c.name}</div><div class="rcrag-meta">${c.alt}m · ${c.rock} · ${c.grades}</div></div><div class="rcrag-score"><div class="rcrag-score-num" style="color:var(--ink-ghost)">…</div></div></div>`
-          : `<div class="rcrag"><div><div class="rcrag-name">${c.name}</div><div class="rcrag-meta">${c.alt}m · ${c.rock} · ${c.grades}</div></div><div class="rcrag-score"><div class="rcrag-score-num" style="color:${scoreColorHex(c.bs)}">${c.bs}</div><div class="rcrag-score-day">${c.bd}</div></div></div>`
-      ).join('')}${sc.some(c => c.bs === null) ? '<div class="region-crags-loading">fetching forecasts…</div>' : ''}</div>`;
+        return `<div class="explore-crag" onclick="toggleExploreCrag('${region}','${rc.name.replace(/'/g,"\\'")}',event)">
+          <div class="explore-crag-head">
+            <span class="explore-crag-name">${rc.name}</span>
+            <span class="explore-crag-meta">${rc.alt}m · ${rc.rock}</span>
+          </div>
+          ${scoreHTML}
+          ${detailHTML}
+        </div>`;
+      }).join('');
     }
 
-    return `<div class="region-card" style="animation-delay:${ri * 0.06}s"><div class="region-toggle" onclick="toggleRegion('${r.id}')">
-      <div class="region-header"><span class="region-rank">${ri + 1}</span><span class="region-name">${r.name}</span><div class="region-best"><div class="region-best-score" style="color:${scoreColorHex(r.bestScore)}">${r.bestScore}</div><div class="region-best-label">best · ${r.bestDay}</div></div></div>
-      <div class="region-meta">${r.sub} · ${r.alt}m</div>
-      <div class="region-pips">${pips}</div>
-      <div class="region-pip-labels">${labels}</div>
-      <div class="region-conf">${r.avgConf}</div>
-      <div class="region-hint">${isExp ? '▲ collapse' : '▼ tap for top crags'}</div>
-    </div>${cHTML}</div>`;
+    return `<div class="region-card">
+      <div class="region-head" onclick="toggleRegion('${region}')">${region} ${badge}</div>
+      <div class="region-crags ${isOpen ? 'open' : ''}">${cragsHTML}</div>
+    </div>`;
   }).join('');
 }
 
-// ─── FETCH ───
-async function fetchAllForecasts() {
-  setStatus('loading', 'updating…');
-  let e = false;
-  await Promise.all(crags.map(async c => {
-    try { forecastCache[c.id] = await fetchDual(c.lat, c.lon); }
-    catch (er) { forecastCache[c.id] = { error: er.message }; e = true; }
+function toggleRegion(region) {
+  if (!expandedExplore[region]) expandedExplore[region] = { open: false, crags: {} };
+  expandedExplore[region].open = !expandedExplore[region].open;
+  renderExplore();
+  // Lazy-load if opening
+  if (expandedExplore[region].open) {
+    const crgs = REGION_CRAGS[region] || [];
+    crgs.forEach(async rc => {
+      const key = region + ':' + rc.name;
+      if (exploreFcCache[key]) return;
+      try {
+        exploreFcCache[key] = await fetchForecast(rc.lat, rc.lon);
+      } catch(e) { exploreFcCache[key] = { error: true }; }
+      renderExplore();
+    });
+  }
+}
+
+function toggleExploreCrag(region, name, event) {
+  event.stopPropagation();
+  if (!expandedExplore[region]) expandedExplore[region] = { open: true, crags: {} };
+  expandedExplore[region].crags[name] = !expandedExplore[region].crags[name];
+  renderExplore();
+}
+
+function addExploreToUsuals(region, name) {
+  const rc = (REGION_CRAGS[region] || []).find(c => c.name === name);
+  if (!rc) return;
+  const id = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now();
+  crags.push({
+    id, name: rc.name, region, lat: rc.lat, lon: rc.lon, alt: rc.alt,
+    rock: rc.rock, orientation: rc.orientation || [], notes: ''
+  });
+  saveCrags();
+  // Fetch weather for new crag
+  fetchForecast(rc.lat, rc.lon).then(fc => {
+    forecastCache[id] = fc;
     renderCards();
-  }));
-  if (e) setStatus('error', 'connection issue');
-  else { const t = new Date(); setStatus('ok', `updated ${t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`); }
-}
-
-async function fetchAllRegions() {
-  setStatus('loading', 'updating regions…');
-  let e = false;
-  await Promise.all(REGIONS.map(async r => {
-    try { regionCache[r.id] = await fetchDual(r.lat, r.lon); }
-    catch (er) { regionCache[r.id] = { error: er.message }; e = true; }
-    renderExplore();
-  }));
-  if (!e) { const t = new Date(); setStatus('ok', `updated ${t.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`); }
-}
-
-function refreshAll() {
-  forecastCache = {}; regionCache = {}; cragExploreCache = {};
-  expandedDay = {}; expandedRegion = null;
-  renderCards(); renderExplore();
-  fetchAllForecasts().then(() => fetchAllRegions());
-}
-
-function setStatus(s, t) {
-  const d = document.getElementById('statusDot'), x = document.getElementById('statusText');
-  d.className = 'status-dot';
-  if (s === 'loading') d.classList.add('loading');
-  if (s === 'error') d.classList.add('error');
-  x.textContent = t;
-}
-
-// ─── TABS & SORT ───
-function switchTab(name, btn) {
-  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('pane-' + name).classList.add('active');
-  if (name === 'explore' && !Object.keys(regionCache).length) fetchAllRegions();
-}
-
-function setSort(b) {
-  document.querySelectorAll('.sort-btn').forEach(p => p.classList.remove('active'));
-  b.classList.add('active');
-  currentSort = b.dataset.sort;
+  });
+  renderExplore();
   renderCards();
 }
 
-// ─── MODAL ───
-function buildOrientationButtons() {
-  document.getElementById('orientationBtns').innerHTML = ORIENTATIONS.map(o =>
-    `<button type="button" class="orient-btn ${selectedOrientations.includes(o) ? 'active' : ''}" onclick="toggleOrientation('${o}',this)">${o}</button>`
-  ).join('');
+// ─── TABS ───
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('pane-' + tab).classList.add('active');
+  btn.classList.add('active');
+  if (tab === 'explore') {
+    renderExplore();
+    // Start loading regions
+    const anyLoaded = REGIONS.some(r => (REGION_CRAGS[r] || []).some(rc => exploreFcCache[r + ':' + rc.name]));
+    if (!anyLoaded) fetchAllRegions();
+  }
 }
 
-function toggleOrientation(o, b) {
-  const i = selectedOrientations.indexOf(o);
-  if (i >= 0) { selectedOrientations.splice(i, 1); b.classList.remove('active'); }
-  else { selectedOrientations.push(o); b.classList.add('active'); }
-}
-
+// ─── MODAL / CRUD ───
+let editingId = null;
 function openModal(id) {
   editingId = id || null;
-  selectedOrientations = [];
-  if (editingId) {
-    const c = crags.find(x => x.id === editingId);
-    if (!c) return;
-    document.getElementById('modalTitle').textContent = 'Edit crag';
-    document.getElementById('inputName').value = c.name;
-    document.getElementById('inputRegion').value = c.region || '';
-    document.getElementById('inputLat').value = c.lat;
-    document.getElementById('inputLon').value = c.lon;
-    document.getElementById('inputAlt').value = c.alt || '';
-    document.getElementById('inputRock').value = c.rock || '';
-    document.getElementById('inputNotes').value = c.notes || '';
-    selectedOrientations = [...(c.orientation || [])];
-  } else {
-    document.getElementById('modalTitle').textContent = 'Add a crag';
-    ['inputName','inputRegion','inputLat','inputLon','inputAlt','inputRock'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('inputNotes').value = '';
-  }
-  buildOrientationButtons();
+  document.getElementById('modalTitle').textContent = id ? 'Edit crag' : 'Add a crag';
+  const c = id ? crags.find(x => x.id === id) : null;
+  document.getElementById('inputName').value = c?.name || '';
+  document.getElementById('inputRegion').value = c?.region || '';
+  document.getElementById('inputLat').value = c?.lat || '';
+  document.getElementById('inputLon').value = c?.lon || '';
+  document.getElementById('inputAlt').value = c?.alt || '';
+  document.getElementById('inputRock').value = c?.rock || '';
+  document.getElementById('inputNotes').value = c?.notes || '';
+  // Orientation buttons
+  const og = document.getElementById('orientationBtns');
+  const dirs = ['N','NE','E','SE','S','SW','W','NW'];
+  og.innerHTML = dirs.map(d => `<button type="button" class="orient-btn ${c?.orientation?.includes(d) ? 'sel' : ''}" onclick="this.classList.toggle('sel')">${d}</button>`).join('');
   document.getElementById('modalOverlay').classList.add('open');
-  setTimeout(() => document.getElementById('inputName').focus(), 100);
 }
-
 function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); editingId = null; }
-function closeModalOutside(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
-
-async function saveCrag() {
+function closeModalOutside(e) { if (e.target === e.currentTarget) closeModal(); }
+function editCrag(id) { openModal(id); }
+function removeCrag(id) {
+  if (!confirm('Remove this crag?')) return;
+  crags = crags.filter(c => c.id !== id);
+  saveCrags(); renderCards();
+}
+function saveCrag() {
   const name = document.getElementById('inputName').value.trim();
-  const region = document.getElementById('inputRegion').value.trim();
-  const lat = parseFloat(document.getElementById('inputLat').value);
-  const lon = parseFloat(document.getElementById('inputLon').value);
-  const alt = parseInt(document.getElementById('inputAlt').value) || null;
-  const rock = document.getElementById('inputRock').value.trim();
-  const notes = document.getElementById('inputNotes').value.trim();
-
-  if (!name || isNaN(lat) || isNaN(lon)) { alert('Name, latitude, and longitude are required.'); return; }
-
+  if (!name) return;
+  const orient = [...document.querySelectorAll('.orient-btn.sel')].map(b => b.textContent);
+  const data = {
+    name,
+    region: document.getElementById('inputRegion').value.trim(),
+    lat: parseFloat(document.getElementById('inputLat').value) || 0,
+    lon: parseFloat(document.getElementById('inputLon').value) || 0,
+    alt: parseInt(document.getElementById('inputAlt').value) || 0,
+    rock: document.getElementById('inputRock').value.trim(),
+    orientation: orient,
+    notes: document.getElementById('inputNotes').value.trim(),
+  };
   if (editingId) {
-    const i = crags.findIndex(c => c.id === editingId);
-    if (i >= 0) { crags[i] = { ...crags[i], name, region, lat, lon, alt, rock, notes, orientation: [...selectedOrientations] }; delete forecastCache[editingId]; }
+    const idx = crags.findIndex(c => c.id === editingId);
+    if (idx >= 0) crags[idx] = { ...crags[idx], ...data };
   } else {
-    crags.push({ id: name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' + Date.now(), name, region, lat, lon, alt, rock, notes, orientation: [...selectedOrientations] });
+    data.id = name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now();
+    crags.push(data);
   }
-  saveCragsToStorage(); closeModal(); renderCards(); fetchAllForecasts();
+  saveCrags(); closeModal(); renderCards();
+  // Fetch weather for new/edited crag
+  const c = editingId ? crags.find(x => x.id === editingId) : crags[crags.length - 1];
+  if (c) {
+    fetchForecast(c.lat, c.lon).then(fc => {
+      forecastCache[c.id] = fc;
+      renderCards();
+    });
+  }
 }
 
-function editCrag(id) { openModal(id); }
-
-function removeCrag(id) {
-  const c = crags.find(x => x.id === id);
-  if (!c || !confirm(`Remove ${c.name}?`)) return;
-  crags = crags.filter(x => x.id !== id);
-  delete forecastCache[id];
-  saveCragsToStorage(); renderCards();
+function refreshAll() {
+  forecastCache = {};
+  renderCards();
+  fetchAllForecasts();
 }
 
 // ─── INIT ───
 function init() {
+  initTheme();
   // Inject SVG icons from icons.js
   document.querySelectorAll('.nav-icon').forEach(el => {
     const key = el.dataset.icon;
     if (key && ICON[key]) el.innerHTML = ICON[key];
   });
-  const refreshEl = document.querySelector('.refresh-btn .refresh-icon');
-  if (refreshEl) refreshEl.innerHTML = ICON.refresh;
-
   loadCrags(); renderCards(); renderExplore();
   const sb = (window.self !== window.top) || (window.location.protocol === 'blob:');
   if (sb) {
@@ -580,9 +758,6 @@ function init() {
   fetchAllForecasts();
   setInterval(() => {
     fetchAllForecasts();
-    if (document.getElementById('pane-explore').classList.contains('active')) fetchAllRegions();
   }, 30 * 60 * 1000);
 }
-
-document.addEventListener('DOMContentLoaded', init);
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+init();
