@@ -263,18 +263,58 @@ body {
 .meta-pipe span:first-child::before { display: none; }
 .card-actions {
   margin-left: auto;
-  display: flex; gap: 2px;
+  position: relative;
   flex-shrink: 0;
 }
-.card-act {
+.card-overflow {
   background: none; border: none; cursor: pointer;
-  font-size: 14px; color: var(--ink-faint);
-  width: 28px; height: 28px;
+  font-family: var(--font-body);
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink-faint);
+  letter-spacing: 2px;
+  width: 36px; height: 28px;
   border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s, color 0.2s;
 }
-.card-act:hover { background: var(--coral-dim); color: var(--coral); }
+.card-overflow:hover { background: var(--coral-dim); color: var(--coral); }
+.card-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(30,45,36,0.12);
+  overflow: hidden;
+  min-width: 140px;
+  animation: menuPop 0.2s ease-out;
+}
+[data-theme="dark"] .card-menu { box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+.card-menu.open { display: block; }
+@keyframes menuPop {
+  from { opacity: 0; transform: translateY(-4px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.card-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 10px 16px;
+  border: none;
+  background: none;
+  font-family: var(--font-data);
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.card-menu button:hover { background: var(--coral-dim); }
+.card-menu-danger { color: var(--red) !important; }
+.card-menu-danger:hover { background: rgba(232,114,90,0.1) !important; }
 
 /* Card HR */
 .card-hr {
@@ -555,18 +595,6 @@ body {
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* ─── EXPLORE ─── */
-.explore-controls {
-  padding: 8px 0 12px;
-}
-.explore-sel {
-  font-family: var(--font-data); font-size: 12px;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--card-border);
-  background: var(--card-bg);
-  color: var(--ink);
-  cursor: pointer;
-}
 .region-card {
   background: var(--card-bg);
   border: 1px solid var(--card-border);

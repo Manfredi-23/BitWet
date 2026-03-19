@@ -255,23 +255,25 @@ function getBestBlended(id) {
   return Math.max(...src.daily.time.map((_, i) => blendedScore(fc, i, orient).score));
 }
 
-// Weekend score: best score across Fri evening + Sat + Sun
+// Weekend score: average of Sat + Sun best scores (not just single best day)
 function getWeekendScore(id) {
   const fc = forecastCache[id]; if (!fc || fc.error) return -1;
   const src = fc.best || fc.ecmwf; if (!src?.daily) return -1;
   const c = crags.find(x => x.id === id);
   const orient = c?.orientation || [];
-  let best = -1;
-  const today = new Date();
+  let satBest = -1, sunBest = -1;
   src.daily.time.forEach((ds, i) => {
     const d = new Date(ds + 'T00:00:00');
-    const dow = d.getDay(); // 0=Sun, 5=Fri, 6=Sat
-    if (dow === 5 || dow === 6 || dow === 0) {
-      const s = blendedScore(fc, i, orient).score;
-      if (s > best) best = s;
-    }
+    const dow = d.getDay();
+    const s = blendedScore(fc, i, orient).score;
+    if (dow === 6 && s > satBest) satBest = s; // Saturday
+    if (dow === 0 && s > sunBest) sunBest = s; // Sunday
   });
-  return best;
+  // If we have both days, average them; if only one, use that
+  if (satBest >= 0 && sunBest >= 0) return Math.round((satBest + sunBest) / 2);
+  if (satBest >= 0) return satBest;
+  if (sunBest >= 0) return sunBest;
+  return -1;
 }
 
 function getTodayScore(id) {
@@ -285,8 +287,8 @@ function getTodayScore(id) {
   return blendedScore(fc, idx, orient).score;
 }
 
-// ─── TIME-OF-DAY BREAKDOWN ───
-function getTimeSlots(fc, dayIndex) {
+// ─── TIME-OF-DAY BREAKDOWN (full scoring, lazy) ───
+function getTimeSlots(fc, dayIndex, orientation) {
   const src = fc.best || fc.ecmwf;
   if (!src?.hourly?.time || !src?.daily?.time) return null;
   const dayStr = src.daily.time[dayIndex];
@@ -301,33 +303,57 @@ function getTimeSlots(fc, dayIndex) {
   const precip = src.hourly.precipitation;
   const wxCodes = src.hourly.weather_code;
   const temps = src.hourly.temperature_2m;
+  const windDirs = src.hourly.wind_direction_10m;
 
   return slots.map(slot => {
     const s = dayStr + slot.start;
     const e = dayStr + slot.end;
-    let totalPrecip = 0, maxWx = 0, count = 0, tempSum = 0;
+    let totalPrecip = 0, maxWx = 0, count = 0, tempMax = -100, tempMin = 100;
+    let windSinSum = 0, windCosSum = 0, windCount = 0;
     for (let i = 0; i < times.length; i++) {
       if (times[i] >= s && times[i] < e) {
         totalPrecip += (precip?.[i] || 0);
         if ((wxCodes?.[i] || 0) > maxWx) maxWx = wxCodes[i];
-        tempSum += (temps?.[i] || 0);
-        count++;
+        const t = temps?.[i];
+        if (t != null) { tempMax = Math.max(tempMax, t); tempMin = Math.min(tempMin, t); count++; }
+        if (windDirs?.[i] != null) {
+          const rad = windDirs[i] * Math.PI / 180;
+          windSinSum += Math.sin(rad); windCosSum += Math.cos(rad); windCount++;
+        }
       }
     }
-    // Quick score for time slot
-    let slotScore = 100;
-    if (totalPrecip > 2) slotScore -= 50;
-    else if (totalPrecip > 0.5) slotScore -= 25;
-    else if (totalPrecip > 0) slotScore -= 10;
-    if (maxWx >= 95) slotScore -= 30;
-    else if (maxWx >= 61) slotScore -= 15;
-    else if (maxWx >= 51) slotScore -= 8;
-    slotScore = Math.max(0, Math.min(100, slotScore));
+    // Build a pseudo-daily record for computeScore
+    let slotWindDeg = null;
+    if (windCount > 0) {
+      slotWindDeg = Math.atan2(windSinSum / windCount, windCosSum / windCount) * 180 / Math.PI;
+      if (slotWindDeg < 0) slotWindDeg += 360;
+      slotWindDeg = Math.round(slotWindDeg);
+    }
+    const slotShelter = calcWindShelter(slotWindDeg, orientation);
+    // Drying: hours from slot start back to last rain
+    let slotDryHours = null;
+    const slotStartIdx = times.findIndex(t => t >= s);
+    if (slotStartIdx >= 0) {
+      for (let i = slotStartIdx; i >= 0; i--) {
+        if ((precip?.[i] || 0) > 0.1) { slotDryHours = slotStartIdx - i; break; }
+      }
+      if (slotDryHours == null) slotDryHours = slotStartIdx > 0 ? slotStartIdx : 48;
+    }
+    const dayRecord = {
+      temperature_2m_max: tempMax > -100 ? tempMax : null,
+      temperature_2m_min: tempMin < 100 ? tempMin : null,
+      precipitation_sum: totalPrecip,
+      precipitation_probability_max: totalPrecip > 0 ? 80 : 10,
+      wind_speed_10m_max: 0, // hourly wind speed not in our fetch, estimate from gusts
+      wind_gusts_10m_max: 0,
+      weather_code: maxWx,
+    };
+    const slotScore = computeScore(dayRecord, dayStr, slotDryHours, slotShelter);
     return {
       label: slot.label,
       wx: wxLabel(maxWx),
       wxCode: maxWx,
-      score: Math.round(slotScore),
+      score: slotScore,
       precip: totalPrecip.toFixed(1),
     };
   });
@@ -420,7 +446,7 @@ function renderCards() {
         const expDateStr = src.daily.time[expIdx];
 
         // Time-of-day slots
-        const slots = getTimeSlots(fc, expIdx);
+        const slots = getTimeSlots(fc, expIdx, c.orientation);
         const trend = getDayTrend(slots);
         const trendClass = trend === 'Improving' ? 'improving' : trend === 'Getting worse' ? 'worsening' : '';
 
@@ -470,7 +496,13 @@ function renderCards() {
         <div class="card-head-row">
           <div class="crag-name">${c.name}</div>
           <div class="meta-pipe">${metaHTML}</div>
-          <div class="card-actions"><button class="card-act" onclick="editCrag('${c.id}')">✎</button><button class="card-act" onclick="removeCrag('${c.id}')">✕</button></div>
+          <div class="card-actions">
+            <button class="card-overflow" onclick="toggleCardMenu('${c.id}',event)" aria-label="Options">···</button>
+            <div class="card-menu" id="menu-${c.id}">
+              <button onclick="editCrag('${c.id}');closeCardMenus()">Edit crag</button>
+              <button class="card-menu-danger" onclick="removeCrag('${c.id}');closeCardMenus()">Remove</button>
+            </div>
+          </div>
         </div>
       </div>
       <hr class="card-hr">
@@ -483,6 +515,19 @@ function windDirLabel(deg) {
   const dirs = ['N','NE','E','SE','S','SW','W','NW'];
   return dirs[Math.round(deg / 45) % 8];
 }
+
+// ─── CARD OVERFLOW MENU ───
+function toggleCardMenu(cragId, event) {
+  event.stopPropagation();
+  const menu = document.getElementById('menu-' + cragId);
+  const wasOpen = menu.classList.contains('open');
+  closeCardMenus();
+  if (!wasOpen) menu.classList.add('open');
+}
+function closeCardMenus() {
+  document.querySelectorAll('.card-menu.open').forEach(m => m.classList.remove('open'));
+}
+document.addEventListener('click', closeCardMenus);
 
 function toggleDay(cragId, dayIdx) {
   if (expandedDays[cragId] === dayIdx) {
@@ -508,44 +553,104 @@ async function fetchAllRegions() {
   renderExplore();
 }
 
+let exploreSort = 'weekend';
+
+function setExploreSort(btn) {
+  exploreSort = btn.dataset.sort;
+  document.querySelectorAll('#exploreSortBar .sort-pill').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderExplore();
+}
+
+// Get best weekend score for a region
+function getRegionWeekendScore(region) {
+  const crgs = REGION_CRAGS[region] || [];
+  let best = -1;
+  crgs.forEach(rc => {
+    const key = region + ':' + rc.name;
+    const fc = exploreFcCache[key];
+    if (!fc || fc.error) return;
+    const src = fc.best || fc.ecmwf;
+    if (!src?.daily) return;
+    let satBest = -1, sunBest = -1;
+    src.daily.time.forEach((ds, i) => {
+      const dow = new Date(ds + 'T00:00:00').getDay();
+      const s = blendedScore(fc, i, rc.orientation || []).score;
+      if (dow === 6 && s > satBest) satBest = s;
+      if (dow === 0 && s > sunBest) sunBest = s;
+    });
+    let avg = -1;
+    if (satBest >= 0 && sunBest >= 0) avg = Math.round((satBest + sunBest) / 2);
+    else if (satBest >= 0) avg = satBest;
+    else if (sunBest >= 0) avg = sunBest;
+    if (avg > best) best = avg;
+  });
+  return best;
+}
+
+function getRegionTodayScore(region) {
+  const crgs = REGION_CRAGS[region] || [];
+  const today = new Date().toISOString().slice(0, 10);
+  let best = -1;
+  crgs.forEach(rc => {
+    const key = region + ':' + rc.name;
+    const fc = exploreFcCache[key];
+    if (!fc || fc.error) return;
+    const src = fc.best || fc.ecmwf;
+    if (!src?.daily) return;
+    const idx = src.daily.time.indexOf(today);
+    if (idx < 0) return;
+    const s = blendedScore(fc, idx, rc.orientation || []).score;
+    if (s > best) best = s;
+  });
+  return best;
+}
+
 function renderExplore() {
   const grid = document.getElementById('exploreGrid');
   if (!grid) return;
-  const selVal = document.getElementById('exploreDaySelect').value;
 
-  // Fill day selector if empty
-  const sel = document.getElementById('exploreDaySelect');
-  if (sel.options.length <= 1) {
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(); d.setDate(d.getDate() + i);
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      sel.appendChild(opt);
-    }
+  // Sort regions
+  let sortedRegions = [...REGIONS];
+  switch (exploreSort) {
+    case 'weekend':
+      sortedRegions.sort((a, b) => getRegionWeekendScore(b) - getRegionWeekendScore(a));
+      break;
+    case 'score':
+      sortedRegions.sort((a, b) => getRegionTodayScore(b) - getRegionTodayScore(a));
+      break;
+    case 'name':
+      sortedRegions.sort((a, b) => a.localeCompare(b));
+      break;
   }
 
-  grid.innerHTML = REGIONS.map(region => {
+  grid.innerHTML = sortedRegions.map(region => {
     const crgs = REGION_CRAGS[region] || [];
     const isOpen = expandedExplore[region]?.open;
 
-    // Region best score
-    let regionBest = -1;
-    crgs.forEach(rc => {
-      const key = region + ':' + rc.name;
-      const fc = exploreFcCache[key];
-      if (!fc || fc.error) return;
-      const src = fc.best || fc.ecmwf;
-      if (!src?.daily) return;
-      src.daily.time.forEach((_, di) => {
-        if (selVal !== 'best' && di !== parseInt(selVal)) return;
-        const s = blendedScore(fc, di, rc.orientation || []).score;
-        if (s > regionBest) regionBest = s;
+    // Region score based on sort mode
+    let regionScore = -1;
+    if (exploreSort === 'weekend') {
+      regionScore = getRegionWeekendScore(region);
+    } else if (exploreSort === 'score') {
+      regionScore = getRegionTodayScore(region);
+    } else {
+      // For name sort, show best overall
+      crgs.forEach(rc => {
+        const key = region + ':' + rc.name;
+        const fc = exploreFcCache[key];
+        if (!fc || fc.error) return;
+        const src = fc.best || fc.ecmwf;
+        if (!src?.daily) return;
+        src.daily.time.forEach((_, di) => {
+          const s = blendedScore(fc, di, rc.orientation || []).score;
+          if (s > regionScore) regionScore = s;
+        });
       });
-    });
+    }
 
-    const badge = regionBest >= 0
-      ? `<span class="region-score-badge ${scorePillClass(regionBest)}">${regionBest}</span>`
+    const badge = regionScore >= 0
+      ? `<span class="region-score-badge ${scorePillClass(regionScore)}">${regionScore}</span>`
       : '';
 
     // Crag list

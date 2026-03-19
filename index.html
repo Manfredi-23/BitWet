@@ -41,8 +41,10 @@
       <div id="cragGrid"></div>
     </div>
     <div class="tab-pane" id="pane-explore">
-      <div class="explore-controls">
-        <select class="explore-sel" id="exploreDaySelect" onchange="renderExplore()"><option value="best">best day (7-day)</option></select>
+      <div class="sort-bar" id="exploreSortBar">
+        <button class="sort-pill active" data-sort="weekend" onclick="setExploreSort(this)">This Weekend</button>
+        <button class="sort-pill" data-sort="score" onclick="setExploreSort(this)">Best Today</button>
+        <button class="sort-pill" data-sort="name" onclick="setExploreSort(this)">Name</button>
       </div>
       <div id="exploreGrid"></div>
     </div>
