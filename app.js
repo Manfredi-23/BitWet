@@ -588,7 +588,6 @@ function sortedCrags() {
     case 'weekend': return list.sort((a, b) => getWeekendScore(b.id) - getWeekendScore(a.id));
     case 'score': return list.sort((a, b) => getTodayScore(b.id) - getTodayScore(a.id));
     case 'name': return list.sort((a, b) => a.name.localeCompare(b.name));
-    case 'region': return list.sort((a, b) => a.region.localeCompare(b.region) || a.name.localeCompare(b.name));
     default: return list;
   }
 }
@@ -866,6 +865,7 @@ function switchTab(tab, btn) {
     const anyLoaded = REGIONS.some(r => (REGION_CRAGS[r] || []).some(rc => exploreFcCache[r + ':' + rc.name]));
     if (!anyLoaded) fetchAllRegions();
   }
+  if (tab === 'planner') initPlannerDays();
 }
 async function fetchAllRegions() {
   for (const region of REGIONS) {
@@ -927,11 +927,246 @@ function saveCrag() {
 }
 function refreshAll() { forecastCache = {}; renderCards(); fetchAllForecasts(); }
 
+// ═══════════════════════════════════════════════════════
+// PLANNER
+// ═══════════════════════════════════════════════════════
+
+// Haversine distance (km, straight-line)
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Parse location: accepts "47.37, 8.55" or city name (geocoded via Open-Meteo)
+async function parseLocation(input) {
+  const trimmed = input.trim();
+  // Try lat,lon
+  const parts = trimmed.split(/[,\s]+/).map(Number);
+  if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1]) && Math.abs(parts[0]) <= 90 && Math.abs(parts[1]) <= 180) {
+    return { lat: parts[0], lon: parts[1] };
+  }
+  // Geocode via Open-Meteo
+  try {
+    const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(trimmed)}&count=1&language=en&format=json`);
+    const data = await res.json();
+    if (data.results?.length) return { lat: data.results[0].latitude, lon: data.results[0].longitude };
+  } catch(e) {}
+  return null;
+}
+
+// Build the day selector buttons
+function initPlannerDays() {
+  const container = document.getElementById('plannerDays');
+  if (!container || container.children.length > 0) return;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(); d.setDate(d.getDate() + i);
+    const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
+    const dayNum = d.getDate();
+    const ds = d.toISOString().slice(0, 10);
+    const dow = d.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'planner-day-btn' + (isWeekend ? ' sel' : '');
+    btn.dataset.date = ds;
+    btn.textContent = dayName + ' ' + dayNum;
+    btn.onclick = () => btn.classList.toggle('sel');
+    container.appendChild(btn);
+  }
+}
+
+// Gather all candidate crags based on source filter
+function getPlannerCandidates(source) {
+  const candidates = [];
+  if (source === 'usuals' || source === 'both') {
+    crags.forEach(c => candidates.push({ ...c, source: 'usuals' }));
+  }
+  if (source === 'explore' || source === 'both') {
+    for (const region of REGIONS) {
+      (REGION_CRAGS[region] || []).forEach(rc => {
+        // Avoid duplicates if crag is already in usuals
+        const isDup = candidates.some(c => c.name === rc.name && Math.abs(c.lat - rc.lat) < 0.01);
+        if (!isDup) {
+          candidates.push({
+            id: region + ':' + rc.name,
+            name: rc.name, region, lat: rc.lat, lon: rc.lon, alt: rc.alt,
+            rock: rc.rock, orientation: rc.orientation || [],
+            terrain: rc.terrain || 'vertical', notes: '',
+            source: 'explore'
+          });
+        }
+      });
+    }
+  }
+  return candidates;
+}
+
+let plannerAbort = null;
+
+async function runPlanner() {
+  const resultsDiv = document.getElementById('plannerResults');
+  resultsDiv.innerHTML = '<div class="planner-loading">Searching crags</div>';
+
+  // Parse location
+  const locInput = document.getElementById('plannerLocation').value;
+  const homeLoc = await parseLocation(locInput);
+
+  // Gather filters
+  const selectedDays = [...document.querySelectorAll('#plannerDays .planner-day-btn.sel')].map(b => b.dataset.date);
+  const selectedRocks = [...document.querySelectorAll('#plannerRock .orient-btn.sel')].map(b => b.dataset.val);
+  const selectedTerrain = [...document.querySelectorAll('#plannerTerrain .orient-btn.sel')].map(b => b.dataset.val);
+  const selectedFacing = [...document.querySelectorAll('#plannerFacing .orient-btn.sel')].map(b => b.dataset.val);
+  const minScore = parseInt(document.getElementById('plannerMinScore').value) || 0;
+  const maxResults = parseInt(document.getElementById('plannerMaxResults').value) || 5;
+  const source = document.getElementById('plannerSource').value;
+
+  if (selectedDays.length === 0) {
+    resultsDiv.innerHTML = '<div class="planner-empty">Select at least one day.</div>';
+    return;
+  }
+
+  // Get candidates
+  const candidates = getPlannerCandidates(source);
+
+  // Filter by rock, terrain, facing
+  const filtered = candidates.filter(c => {
+    if (selectedRocks.length > 0 && !selectedRocks.some(r => (c.rock || '').toLowerCase().includes(r.toLowerCase()))) return false;
+    if (selectedTerrain.length > 0 && !selectedTerrain.includes(c.terrain || 'vertical')) return false;
+    if (selectedFacing.length > 0) {
+      const cragFaces = c.orientation || [];
+      if (!selectedFacing.some(f => cragFaces.includes(f))) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    resultsDiv.innerHTML = '<div class="planner-empty">No crags match your filters. Try broadening your search.</div>';
+    return;
+  }
+
+  // Fetch forecasts for all candidates (use cache when available)
+  resultsDiv.innerHTML = `<div class="planner-loading">Checking weather for ${filtered.length} crags</div>`;
+
+  const fcMap = {};
+  const batchSize = 6;
+  for (let i = 0; i < filtered.length; i += batchSize) {
+    const batch = filtered.slice(i, i + batchSize);
+    await Promise.all(batch.map(async c => {
+      const cacheKey = c.source === 'usuals' ? c.id : c.id;
+      // Check existing caches
+      if (forecastCache[c.id]) { fcMap[c.id] = forecastCache[c.id]; return; }
+      if (exploreFcCache[c.id]) { fcMap[c.id] = exploreFcCache[c.id]; return; }
+      try {
+        const fc = await fetchForecast(c.lat, c.lon);
+        fcMap[c.id] = fc;
+        // Also populate caches for future use
+        if (c.source === 'usuals') forecastCache[c.id] = fc;
+        else exploreFcCache[c.id] = fc;
+      } catch(e) { fcMap[c.id] = { error: true }; }
+    }));
+    // Update progress
+    const pct = Math.min(100, Math.round(((i + batchSize) / filtered.length) * 100));
+    resultsDiv.innerHTML = `<div class="planner-loading">Checking weather... ${pct}%</div>`;
+  }
+
+  // Score each crag for each selected day, find best day
+  const scored = [];
+  for (const c of filtered) {
+    const fc = fcMap[c.id];
+    if (!fc || fc.error) continue;
+    const src = fc.best || fc.ecmwf;
+    if (!src?.daily?.time) continue;
+
+    let bestScore = -1, bestDay = null, bestDayIdx = -1;
+    for (const ds of selectedDays) {
+      const di = src.daily.time.indexOf(ds);
+      if (di < 0) continue;
+      const bl = blendedScore(fc, di, c);
+      if (bl.score > bestScore) {
+        bestScore = bl.score;
+        bestDay = ds;
+        bestDayIdx = di;
+      }
+    }
+    if (bestScore < minScore) continue;
+
+    const dist = homeLoc ? Math.round(haversineKm(homeLoc.lat, homeLoc.lon, c.lat, c.lon)) : null;
+
+    scored.push({
+      crag: c, fc, bestScore, bestDay, bestDayIdx, dist,
+      // Secondary sort: distance (closer is better)
+      sortKey: bestScore * 1000 - (dist || 0),
+    });
+  }
+
+  // Sort: best score first, then closest distance as tiebreaker
+  scored.sort((a, b) => b.sortKey - a.sortKey);
+  const results = scored.slice(0, maxResults);
+
+  if (results.length === 0) {
+    resultsDiv.innerHTML = '<div class="planner-empty">No crags above your minimum score for the selected days. Try lowering the threshold or adding more days.</div>';
+    return;
+  }
+
+  // Render results
+  resultsDiv.innerHTML = results.map((r, ri) => {
+    const c = r.crag;
+    const dayLabel = new Date(r.bestDay + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    const distLabel = r.dist != null ? r.dist + ' km' : '';
+    const metaParts = [c.region, c.alt + 'm', c.rock, (c.orientation || []).join('·'), c.terrain].filter(Boolean);
+
+    // Mini forecast for selected days
+    const src = (r.fc.best || r.fc.ecmwf);
+    let daysHTML = '';
+    if (src?.daily?.time) {
+      daysHTML = selectedDays.map(ds => {
+        const di = src.daily.time.indexOf(ds);
+        if (di < 0) return '';
+        const dd = extractDay(src, di);
+        const bl = blendedScore(r.fc, di, c);
+        const dn = new Date(ds + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+        const num = new Date(ds + 'T00:00:00').getDate();
+        return `<div class="fday">
+          <div class="fday-name">${dn} ${num}</div>
+          <div class="fday-icon">${wxSVG(dd.weather_code)}</div>
+          <div class="fday-wx-label">${wxLabel(dd.weather_code)}</div>
+          <div class="fday-temp">[ ${dd.temperature_2m_min != null ? Math.round(dd.temperature_2m_min) : '?'}° / ${dd.temperature_2m_max != null ? Math.round(dd.temperature_2m_max) : '?'}° ]</div>
+          <div class="score-pill ${scorePillClass(bl.score)}">${bl.score}</div>
+        </div>`;
+      }).join('');
+    }
+
+    return `<div class="planner-result" style="animation-delay:${ri * 0.06}s" onclick="togglePlannerDetail('pr-${ri}')">
+      <div class="planner-result-head">
+        <div>
+          <div class="planner-result-name">${c.name}</div>
+          <div class="planner-result-meta">${metaParts.map(m => `<span>${m}</span>`).join('')}</div>
+        </div>
+        <div class="planner-result-score">
+          <div class="score-pill ${scorePillClass(r.bestScore)}" style="padding:5px 14px;font-size:18px">${r.bestScore}</div>
+        </div>
+      </div>
+      <div class="planner-result-best">${scoreWord(r.bestScore)} · ${dayLabel}${distLabel ? ' · ' + distLabel + ' away' : ''}</div>
+      <div class="planner-result-detail" id="pr-${ri}">
+        <div class="forecast-area"><div class="forecast-scroll"><div class="forecast-track">${daysHTML}</div></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePlannerDetail(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
 // ─── INIT ───
 function init() {
   initTheme();
   document.querySelectorAll('.nav-icon').forEach(el => { const key = el.dataset.icon; if (key && ICON[key]) el.innerHTML = ICON[key]; });
-  loadCrags(); renderCards(); renderExplore();
+  loadCrags(); renderCards(); renderExplore(); initPlannerDays();
   const sb = (window.self !== window.top) || (window.location.protocol === 'blob:');
   if (sb) {
     const b = document.createElement('div'); b.className = 'sandbox-banner';
