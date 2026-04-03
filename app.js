@@ -110,10 +110,11 @@ function getSeasonProfile(ds) {
 // Rock drying multiplier: granite=fast, gneiss=medium, limestone=slow
 function rockDryingFactor(rock) {
   const r = (rock || '').toLowerCase();
-  if (r.includes('granite')) return 0.6;
-  if (r.includes('gneiss')) return 0.8;
-  if (r.includes('limestone')) return 1.2;
-  if (r.includes('sandstone')) return 1.4;
+  if (r.includes('granite')) return 0.6;   // Non-porous, excellent drainage
+  if (r.includes('gneiss')) return 0.8;    // Crystalline, some foliation moisture
+  if (r.includes('limestone')) return 1.2; // Porous, seepage, crack moisture
+  if (r.includes('sandstone')) return 2.0; // Highly porous (up to 20% air), absorbs deeply, loses 75% strength when wet. 24-72h drying.
+  if (r.includes('conglomerate') || r.includes('nagelfluh')) return 1.6; // Sedimentary, absorbs like sandstone but with better cement
   return 1.0;
 }
 

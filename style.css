@@ -408,9 +408,11 @@ body {
 }
 .fday-temp {
   font-family: var(--font-data);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--ink-soft);
   margin-bottom: 8px;
+  white-space: nowrap;
+  letter-spacing: -0.3px;
 }
 
 /* Score pill */
