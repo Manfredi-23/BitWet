@@ -693,6 +693,18 @@ body {
   opacity: 0.8;
   cursor: default;
 }
+.add-to-usuals-btn.prominent {
+  font-size: 13px;
+  padding: 10px 20px;
+  background: var(--coral);
+  color: #fff;
+  border-width: 2px;
+}
+.add-to-usuals-btn.prominent.added {
+  background: var(--green-dim, rgba(76, 175, 80, 0.15));
+  color: var(--green, #4caf50);
+  border-color: var(--green, #4caf50);
+}
 
 /* ─── MODAL ─── */
 .modal-overlay {

@@ -11,6 +11,7 @@ import { blendedScore, wxLabel } from '@/lib/scoring';
 import { scorePillClass, scoreColorHex } from '@/lib/constants';
 import WeatherIcon from '@/components/WeatherIcon';
 import type { Crag, Forecast } from '@/lib/types';
+import { usePlatform } from '@/hooks/usePlatform';
 
 const SORT_OPTIONS: { mode: SortMode; label: string }[] = [
   { mode: 'weekend', label: 'This Weekend' },
@@ -77,11 +78,12 @@ function getRegionBestScore(region: Region, cache: Record<string, Forecast>): nu
 
 // ─── Explore Crag Detail (expanded forecast) ───
 
-function ExploreCragDetail({ crag, forecast, onAddToUsuals, alreadyAdded }: {
+function ExploreCragDetail({ crag, forecast, onAddToUsuals, alreadyAdded, prominent }: {
   crag: Crag;
   forecast: Forecast;
   onAddToUsuals?: (crag: Crag) => void;
   alreadyAdded: boolean;
+  prominent?: boolean;
 }) {
   const [justAdded, setJustAdded] = useState(false);
   const src = forecast.best || forecast.ecmwf;
@@ -124,11 +126,13 @@ function ExploreCragDetail({ crag, forecast, onAddToUsuals, alreadyAdded }: {
       </div>
       {onAddToUsuals && (
         (alreadyAdded || justAdded) ? (
-          <button className={`add-to-usuals-btn added`} disabled>
+          <button className={`add-to-usuals-btn added${prominent ? ' prominent' : ''}`} disabled>
             {justAdded && !alreadyAdded ? 'Added!' : 'Already in Usuals'}
           </button>
         ) : (
-          <button className="add-to-usuals-btn" onClick={handleAdd}>+ Add to Usuals</button>
+          <button className={`add-to-usuals-btn${prominent ? ' prominent' : ''}`} onClick={handleAdd}>
+            {prominent ? '★ Save to Usuals' : '+ Add to Usuals'}
+          </button>
         )
       )}
     </div>
@@ -137,13 +141,14 @@ function ExploreCragDetail({ crag, forecast, onAddToUsuals, alreadyAdded }: {
 
 // ─── Explore Crag Row ───
 
-function ExploreCragRow({ crag, forecast, isOpen, onToggle, onAddToUsuals, alreadyAdded }: {
+function ExploreCragRow({ crag, forecast, isOpen, onToggle, onAddToUsuals, alreadyAdded, prominent }: {
   crag: Crag;
   forecast: Forecast | undefined;
   isOpen: boolean;
   onToggle: () => void;
   onAddToUsuals?: (crag: Crag) => void;
   alreadyAdded: boolean;
+  prominent?: boolean;
 }) {
   const todayStr = new Date().toISOString().slice(0, 10);
 
@@ -195,6 +200,7 @@ function ExploreCragRow({ crag, forecast, isOpen, onToggle, onAddToUsuals, alrea
           forecast={forecast}
           onAddToUsuals={onAddToUsuals}
           alreadyAdded={alreadyAdded}
+          prominent={prominent}
         />
       )}
     </div>
@@ -203,7 +209,7 @@ function ExploreCragRow({ crag, forecast, isOpen, onToggle, onAddToUsuals, alrea
 
 // ─── Region Card ───
 
-function RegionCard({ region, cache, isOpen, onToggle, expandedCrags, onToggleCrag, onAddToUsuals, usualsCrags, sortMode }: {
+function RegionCard({ region, cache, isOpen, onToggle, expandedCrags, onToggleCrag, onAddToUsuals, usualsCrags, sortMode, prominent }: {
   region: Region;
   cache: Record<string, Forecast>;
   isOpen: boolean;
@@ -213,6 +219,7 @@ function RegionCard({ region, cache, isOpen, onToggle, expandedCrags, onToggleCr
   onAddToUsuals?: (crag: Crag) => void;
   usualsCrags: Crag[];
   sortMode: SortMode;
+  prominent?: boolean;
 }) {
   const crgs = REGION_CRAGS[region] || [];
 
@@ -247,6 +254,7 @@ function RegionCard({ region, cache, isOpen, onToggle, expandedCrags, onToggleCr
               onToggle={() => onToggleCrag(rc.name)}
               onAddToUsuals={onAddToUsuals}
               alreadyAdded={alreadyAdded}
+              prominent={prominent}
             />
           );
         })}
@@ -262,6 +270,8 @@ interface ExploreTabProps {
 }
 
 export default function ExploreTab({ onAddToUsuals }: ExploreTabProps) {
+  const platform = usePlatform();
+  const prominent = platform === 'ios';
   const exploreFcCache = useForecastStore((s) => s.exploreFcCache);
   const fetchForecast = useForecastStore((s) => s.fetchForecast);
   const exploreSort = useUIStore((s) => s.exploreSort);
@@ -357,6 +367,7 @@ export default function ExploreTab({ onAddToUsuals }: ExploreTabProps) {
             onAddToUsuals={onAddToUsuals}
             usualsCrags={usualsCrags}
             sortMode={exploreSort}
+            prominent={prominent}
           />
         ))}
       </div>

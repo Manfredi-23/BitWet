@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import { storage } from '@/lib/storage';
 import type { Theme } from '@/lib/storage';
+import { getPlatform } from '@/lib/platform';
 
 export type TabId = 'usuals' | 'explore' | 'planner';
 export type SortMode = 'weekend' | 'score' | 'name';
@@ -37,6 +38,10 @@ interface UIState {
   setTheme: (theme: Theme) => void;
 }
 
+function getInitialSort(): SortMode {
+  return getPlatform() === 'ios' ? 'weekend' : 'score';
+}
+
 function getInitialTheme(): Theme {
   const saved = storage.getTheme();
   if (saved) return saved;
@@ -48,7 +53,7 @@ function getInitialTheme(): Theme {
 
 export const useUIStore = create<UIState>((set, get) => ({
   activeTab: 'usuals',
-  currentSort: 'weekend',
+  currentSort: getInitialSort(),
   exploreSort: 'weekend',
   expandedDays: {},
   expandedExplore: {},
