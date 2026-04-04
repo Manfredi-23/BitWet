@@ -13,9 +13,29 @@
 - Scoring engine in `src/lib/scoring.ts`: `computeScoreV2` + helpers (`calcDryingHours`, `calcDryStreak`, `getDayWindDirection`, `calcWindShelter`)
 - Scoring helpers in `src/lib/scoring.ts`: `blendedScore`, `getTodayScore`, `getWeekendScore`, `estimateRockTemp`, `frictionLabel`, `getTimeSlots`, `getDayTrend`, `wxLabel`, `dryingLabel`, `dryingClass`, `windDirLabel`, `confTag`
 - Scoring uses `fc.best || fc.ecmwf` pattern — CH2 preferred, ECMWF fallback
+- Platform detection: `getPlatform()` in `src/lib/platform.ts`, `usePlatform()` hook in `src/hooks/usePlatform.ts`
+- `PlatformGate` component in `src/components/PlatformGate.tsx` for conditional rendering by platform
 - `blendedScore` runs computeScoreV2 separately for each model then averages; confidence based on score diff
 - `getTodayScore` and `getWeekendScore` accept (fc, crag) not (cragId) — store lookups happen at the caller level
 - `wxLabel` (weather code to text) is in scoring.ts, ported from icons.js
+- Storage adapter: `storage` singleton from `src/lib/storage.ts`; keys `bitWet_v1` (crags) and `bitWet_theme` (theme)
+- All localStorage access must be guarded with `typeof window === 'undefined'` for SSR compatibility
+- Zustand stores live in `src/stores/`. Use `create` from 'zustand' with typed state interface.
+- Crag ID generation: `name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now()` (matches original app.js)
+- Forecast store in `src/stores/forecastStore.ts`: `forecastCache` (usuals), `exploreFcCache` (explore), `fetchForecast`, `fetchAllForecasts`, `fetchExploreForecast`
+- Forecast store calls `/api/forecast?lat=X&lon=Y` route handler (not Open-Meteo directly)
+- Auto-refresh: `startAutoRefresh(crags)` sets 30-min interval; `stopAutoRefresh()` clears it
+- UI store in `src/stores/uiStore.ts`: `activeTab`, `currentSort`, `exploreSort`, `expandedDays`, `expandedExplore`, `theme`
+- Theme is applied via `document.documentElement.setAttribute('data-theme', theme)` — CSS uses `[data-theme="dark"]` selector
+- `SortMode` type: `'weekend' | 'score' | 'name'`; `TabId` type: `'usuals' | 'explore' | 'planner'`
+- CragCard component: `src/components/CragCard.tsx` — accepts `crag`, `forecast`, `index`, `onEdit`, `onRemove` props
+- CragCard day expansion controlled by `useUIStore.expandedDays` — detail panel is separate (DayDetail, US-017)
+- Main page shell: `src/app/page.tsx` ('use client') with header, `Tabs` nav, and tab-pane switching
+- `ThemeInitializer` syncs Zustand theme to `data-theme` attribute; `ThemeToggle` toggles dark/light
+- API route handlers in `src/app/api/*/route.ts`; use `NextRequest`/`NextResponse` from 'next/server'
+- Open-Meteo API: base `https://api.open-meteo.com/v1/forecast`, models `meteoswiss_icon_ch2` (5d) and `ecmwf_ifs` (7d), `past_days=2`, `timezone=auto`
+- Open-Meteo geocoding API: `https://geocoding-api.open-meteo.com/v1/search` — separate base URL from forecast API
+- API route response patterns: forecast returns `{ best, ecmwf }`, geocode returns `{ results: [{ lat, lon, name }] }`
 
 ---
 
@@ -90,4 +110,135 @@
   - `wxLabel` was originally in icons.js, now co-located with scoring in scoring.ts
   - Wind direction variables in `getTimeSlots` were computed but unused in original app.js — removed to avoid lint warnings
   - `estimateRockTemp` uses solar gain formula: 15 * sunFraction * orientFactor * rockFactor * altBoost
+---
+
+## 2026-04-04 - US-007
+- What was implemented: Created platform detection utility (`src/lib/platform.ts`), `usePlatform` hook (`src/hooks/usePlatform.ts`), and `PlatformGate` component (`src/components/PlatformGate.tsx`). Installed `@capacitor/core` as dependency.
+- Files changed:
+  - `src/lib/platform.ts` (created - `getPlatform()` returning 'ios' | 'web')
+  - `src/hooks/usePlatform.ts` (created - `usePlatform()` React hook)
+  - `src/components/PlatformGate.tsx` (created - conditional rendering by platform)
+  - `package.json` / `package-lock.json` (added @capacitor/core dependency)
+- **Learnings for future iterations:**
+  - `@capacitor/core` is safe to import in browser — `Capacitor.isNativePlatform()` returns false when not in a native context
+  - The try/catch in `getPlatform()` handles the edge case where Capacitor might not be initialized
+  - `usePlatform` uses `useMemo` since platform doesn't change at runtime
+  - Components using platform detection need `'use client'` directive
+---
+
+## 2026-04-04 - US-008
+- What was implemented: Created `src/lib/storage.ts` with `StorageAdapter` interface and `LocalStorageAdapter` implementation. Exported singleton `storage` instance.
+- Files changed:
+  - `src/lib/storage.ts` (created - StorageAdapter interface + LocalStorageAdapter + singleton export)
+- **Learnings for future iterations:**
+  - Storage keys: `bitWet_v1` (crags array) and `bitWet_theme` (dark/light string)
+  - All localStorage access guarded with `typeof window === 'undefined'` for SSR safety
+  - `getCrags()` falls back to DEFAULT_CRAGS on missing, empty, or corrupted data
+  - `getTheme()` returns `null` when no preference stored (caller should check OS preference)
+  - `Theme` type exported from storage.ts: `'dark' | 'light'`
+---
+
+## 2026-04-04 - US-009
+- What was implemented: Created `src/stores/cragStore.ts` with Zustand store for managing user's saved crags. Installed `zustand` dependency. Store provides `crags` state initialized from StorageAdapter, plus `loadCrags`, `addCrag`, `editCrag`, `removeCrag` actions. All mutations persist immediately via `storage.saveCrags()`.
+- Files changed:
+  - `src/stores/cragStore.ts` (created - Zustand crag store)
+  - `package.json` / `package-lock.json` (added zustand dependency)
+- **Learnings for future iterations:**
+  - Zustand `create` with typed interface is straightforward — no providers or context needed
+  - `storage.getCrags()` is called at store creation time for initial state (safe because it handles SSR)
+  - `editCrag` takes `Partial<Omit<Crag, 'id'>>` to allow updating any subset of fields while preventing id mutation
+  - ID generation matches original: `name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now()`
+---
+
+## 2026-04-04 - US-010
+- What was implemented: Created `src/stores/forecastStore.ts` with Zustand store for managing weather forecast cache. Two separate caches: `forecastCache` (usuals, keyed by crag id) and `exploreFcCache` (explore crags, keyed by crag id). Actions: `fetchForecast(lat, lon)`, `fetchAllForecasts(crags)`, `fetchExploreForecast(crags)`. Auto-refresh with `startAutoRefresh`/`stopAutoRefresh` (30-min interval). All fetches go through `/api/forecast` route handler.
+- Files changed:
+  - `src/stores/forecastStore.ts` (created - Zustand forecast store)
+- **Learnings for future iterations:**
+  - Forecast store fetches via internal `/api/forecast?lat=X&lon=Y` route (not Open-Meteo directly) — route handler is US-012
+  - Two separate caches mirror the original app.js: `forecastCache` for usuals, `exploreFcCache` for explore
+  - `fetchAllForecasts` fetches all crags in parallel — no batching needed for usuals (batching is Planner-specific, US-024)
+  - Auto-refresh is caller-managed: components must call `startAutoRefresh(crags)` on mount and `stopAutoRefresh()` on unmount
+  - Graceful error handling: failed fetches return `{ best: null, ecmwf: null }` instead of throwing
+---
+
+## 2026-04-04 - US-011
+- What was implemented: Created `src/stores/uiStore.ts` with Zustand store for UI state management. State: `activeTab`, `currentSort`, `exploreSort`, `expandedDays`, `expandedExplore`, `theme`. Actions: `setActiveTab`, `setSort`, `setExploreSort`, `toggleDayExpanded`, `toggleExploreRegion`, `toggleExploreCrag`, `setTheme`. Theme persisted via StorageAdapter, OS color scheme respected on first load.
+- Files changed:
+  - `src/stores/uiStore.ts` (created - Zustand UI store)
+- **Learnings for future iterations:**
+  - `expandedExplore` uses nested structure: `Record<string, { open: boolean; crags: Record<string, boolean> }>` to match original app.js pattern
+  - `toggleDayExpanded` toggles off if same day clicked again (same index = collapse), matching original behavior
+  - `setTheme` also sets `document.documentElement.setAttribute('data-theme', theme)` to apply CSS variables immediately
+  - `getInitialTheme()` checks StorageAdapter first, then OS `prefers-color-scheme`, defaults to 'light'
+  - Separate sort actions for Usuals (`setSort`) and Explore (`setExploreSort`) tabs, matching original's `currentSort` and `exploreSort` globals
+---
+
+## 2026-04-04 - US-012
+- What was implemented: Created `src/app/api/forecast/route.ts` — Next.js Route Handler that proxies weather requests to Open-Meteo. Fetches from MeteoSwiss ICON-CH2 (5-day, 2km) and ECMWF IFS (7-day global) in parallel using `Promise.allSettled`. Returns `{ best, ecmwf }` with graceful null fallback on failure.
+- Files changed:
+  - `src/app/api/forecast/route.ts` (created)
+- **Learnings for future iterations:**
+  - Open-Meteo base URL: `https://api.open-meteo.com/v1/forecast`
+  - CH2 model param: `models=meteoswiss_icon_ch2`, ECMWF: `models=ecmwf_ifs`
+  - Both requests use `past_days=2` and `timezone=auto`
+  - CH2 uses `forecast_days=5`, ECMWF uses `forecast_days=7`
+  - Open-Meteo returns `{ error: true, reason: "..." }` on invalid params — check for `data.error` not just HTTP status
+  - Route shows as `ƒ (Dynamic)` in next build output — correct for API routes
+---
+
+## 2026-04-04 - US-013
+- What was implemented: Created `src/app/api/geocode/route.ts` — Next.js Route Handler that proxies geocoding requests to Open-Meteo. Supports direct coordinate parsing (`47.37, 8.55` or `47.37 8.55`) and city name geocoding via Open-Meteo geocoding API. Returns `{ results: [{ lat, lon, name }] }`.
+- Files changed:
+  - `src/app/api/geocode/route.ts` (created)
+- **Learnings for future iterations:**
+  - Open-Meteo geocoding API: `https://geocoding-api.open-meteo.com/v1/search` (different base from forecast API)
+  - Coordinate parsing uses same logic as original `parseLocation()`: split on comma/space, validate lat ≤ 90, lon ≤ 180
+  - Response normalizes Open-Meteo's `latitude`/`longitude` fields to `lat`/`lon` for consistency with the rest of the app
+  - Route returns `{ results: [] }` on error or no matches (never throws)
+---
+
+## 2026-04-04 - US-014
+- What was implemented: Created `src/components/WeatherIcon.tsx` with React SVG components for all WMO weather codes. Each weather code range maps to a dedicated icon component (Sunny, PartiallySunny, Foggy, Drizzle, Snow, HeavyRain, SnowShowers, Thunderstorm, Cloudy). Re-exports `wxLabel` from scoring.ts for weather code text interpretation.
+- Files changed:
+  - `src/components/WeatherIcon.tsx` (created - WeatherIcon component + all SVG sub-components)
+- **Learnings for future iterations:**
+  - SVG attributes need JSX conversion: `stroke-width` → `strokeWidth`, `stroke-linecap` → `strokeLinecap`, etc.
+  - `wxLabel` was already ported to `src/lib/scoring.ts` in US-006 — WeatherIcon re-exports it for convenience
+  - Icons use `viewBox="0 0 24 24"` and render at container size (no hardcoded width/height on SVG element)
+  - The wrapper `<span>` uses `display: inline-flex` to properly size the SVG
+  - Drizzle (49–57) and freezing rain (58–67) share the same SVG icon, matching icons.js exactly
+  - Snow (68–77) and snow showers (83–86) share the same SVG icon, matching icons.js exactly
+  - UI icons (usuals, explore, planner, addOne) from ICON object in icons.js not ported here — they'll be inlined where needed in tab/button components
+---
+
+## 2026-04-04 - US-015
+- What was implemented: Created `src/components/Tabs.tsx` (3-tab nav: Usuals, Explore, Planner with SVG icons from icons.js), `src/components/ThemeToggle.tsx` (dark/light toggle button), `src/components/ThemeInitializer.tsx` (applies stored theme on mount). Updated `src/app/page.tsx` to be the main app shell with header (logo SVG, meta bar, theme toggle), Tabs nav, and tab-pane switching via `useUIStore`.
+- Files changed:
+  - `src/components/Tabs.tsx` (created - tab navigation component)
+  - `src/components/ThemeToggle.tsx` (created - dark/light mode toggle)
+  - `src/components/ThemeInitializer.tsx` (created - SSR-safe theme attribute setter)
+  - `src/app/page.tsx` (rewritten - main app shell with header, tabs, tab panes)
+- **Learnings for future iterations:**
+  - Nav icons from icons.js ICON object are now inlined as React components in Tabs.tsx (usuals, explore, planner)
+  - ThemeInitializer is a null-rendering component that syncs Zustand theme state to `data-theme` attribute on `<html>`
+  - Tab panes use CSS class `tab-pane` + `active` for show/hide, matching original CSS `.tab-pane { display: none; } .tab-pane.active { display: block; }`
+  - The "Add One" nav button from original is NOT in Tabs — it will be part of the Usuals tab UI (US-018/US-019) since it opens the crag modal
+  - Logo SVG is the full BitWet wordmark from index.html, rendered inline as JSX
+  - Page is `'use client'` because it uses Zustand stores directly
+---
+
+## 2026-04-04 - US-016
+- What was implemented: Created `src/components/CragCard.tsx` — reusable crag forecast card component. Displays crag name, region/alt/rock/orientation metadata, 5-day forecast row with weather icons, temperature ranges, blended score pills with color coding and confidence tags. Includes overflow menu with Edit/Remove options. Shows loading spinner when forecast not yet fetched, "no data available" fallback on error. Day click toggles expanded state via UI store. Card animation staggered by index.
+- Files changed:
+  - `src/components/CragCard.tsx` (created - CragCard component)
+  - `tasks/prd.json` (US-016 passes: true)
+- **Learnings for future iterations:**
+  - CragCard accepts `crag`, `forecast`, `index`, `onEdit`, `onRemove` props — parent controls edit/remove behavior
+  - Day expansion managed via `useUIStore.toggleDayExpanded` / `expandedDays[cragId]` — not local state
+  - Card menu uses local state + outside-click listener to open/close (same pattern as original `toggleCardMenu`)
+  - `extractDay` helper is duplicated locally (also exists in scoring.ts as a private function) — only extracts the fields CragCard needs
+  - Forecast days before today are filtered out (`ds < todayStr` returns null)
+  - `confTag` returns a string ("uncertain", "models split", or empty) — rendered as `.conf-tag` div when non-empty
+  - The detail panel (DayDetail) is NOT part of CragCard — it will be a separate component (US-017) rendered inside the forecast area
 ---
