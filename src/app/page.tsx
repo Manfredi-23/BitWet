@@ -11,6 +11,7 @@ import UsualsTab from '@/components/UsualsTab';
 import ExploreTab from '@/components/ExploreTab';
 import CragModal from '@/components/CragModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import PlannerForm from '@/components/Planner/PlannerForm';
 import type { Crag } from '@/lib/types';
 
 function Logo() {
@@ -160,7 +161,9 @@ export default function Home() {
           {activeTab === 'explore' && <ExploreTab onAddToUsuals={handleAddExploreToUsuals} />}
         </div>
         <div className={`tab-pane${activeTab === 'planner' ? ' active' : ''}`}>
-          {activeTab === 'planner' && <p>Planner tab content</p>}
+          {activeTab === 'planner' && (
+            <PlannerForm onSearch={() => {}} searching={false} />
+          )}
         </div>
       </main>
       <CragModal

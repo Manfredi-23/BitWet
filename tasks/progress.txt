@@ -28,6 +28,11 @@
 - UI store in `src/stores/uiStore.ts`: `activeTab`, `currentSort`, `exploreSort`, `expandedDays`, `expandedExplore`, `theme`
 - Theme is applied via `document.documentElement.setAttribute('data-theme', theme)` — CSS uses `[data-theme="dark"]` selector
 - `SortMode` type: `'weekend' | 'score' | 'name'`; `TabId` type: `'usuals' | 'explore' | 'planner'`
+- `WeatherIcon` component prop is `weatherCode` (not `code`) — accepts WMO weather code number
+- Explore tab in `src/components/ExploreTab.tsx`: uses its own inline crag display (not CragCard), with `ExploreCragRow`/`ExploreCragDetail` sub-components
+- Explore forecast cache keyed by `crag.id` (stable IDs from name), forecasts lazy-loaded on first tab visit via `fetchExploreForecast`
+- React 19 eslint rule `react-hooks/set-state-in-effect` forbids setState in useEffect — use key-based remount pattern instead
+- Modal state (open/close, editing crag) is managed in `page.tsx`, not inside CragModal — CragModal is a controlled component
 - CragCard component: `src/components/CragCard.tsx` — accepts `crag`, `forecast`, `index`, `onEdit`, `onRemove` props
 - CragCard day expansion controlled by `useUIStore.expandedDays` — detail panel is separate (DayDetail, US-017)
 - Main page shell: `src/app/page.tsx` ('use client') with header, `Tabs` nav, and tab-pane switching
@@ -212,6 +217,19 @@
   - UI icons (usuals, explore, planner, addOne) from ICON object in icons.js not ported here — they'll be inlined where needed in tab/button components
 ---
 
+## 2026-04-04 - US-019
+- What was implemented: Created `src/components/CragModal.tsx` — modal overlay form for adding and editing crags. Form fields: name, region, lat/lon, altitude, rock type (dropdown select), wall orientation (multi-select toggle buttons), terrain (radio-style toggle buttons), notes (textarea). In edit mode pre-populates from existing crag data; in add mode defaults to Limestone rock and vertical terrain. Updated `src/app/page.tsx` to wire modal with crag store (addCrag/editCrag) and forecast store (auto-fetch on save).
+- Files changed:
+  - `src/components/CragModal.tsx` (created - modal form component with inner CragForm)
+  - `src/app/page.tsx` (updated - added modal state management, wired onAddCrag/onEditCrag/onSave handlers)
+- **Learnings for future iterations:**
+  - React 19 + eslint `react-hooks/set-state-in-effect` rule forbids calling setState inside useEffect — use key-based remount pattern instead (extract inner component with key prop to force fresh initialization)
+  - CragModal uses `CragForm` inner component with `key={editCrag?.id || '__add__'}` to reset form state on open without useEffect
+  - Modal open/close is managed by parent (page.tsx) via `modalOpen` + `editingCrag` state, not inside the modal itself
+  - After saving a new crag, the newly added crag's forecast is fetched via `useForecastStore.setState` direct update (since the new crag ID isn't known until after `addCrag` completes)
+  - `useCragStore.getState()` used to get the latest crags array after `addCrag` to find the new crag's ID for forecast cache keying
+---
+
 ## 2026-04-04 - US-015
 - What was implemented: Created `src/components/Tabs.tsx` (3-tab nav: Usuals, Explore, Planner with SVG icons from icons.js), `src/components/ThemeToggle.tsx` (dark/light toggle button), `src/components/ThemeInitializer.tsx` (applies stored theme on mount). Updated `src/app/page.tsx` to be the main app shell with header (logo SVG, meta bar, theme toggle), Tabs nav, and tab-pane switching via `useUIStore`.
 - Files changed:
@@ -241,4 +259,86 @@
   - Forecast days before today are filtered out (`ds < todayStr` returns null)
   - `confTag` returns a string ("uncertain", "models split", or empty) — rendered as `.conf-tag` div when non-empty
   - The detail panel (DayDetail) is NOT part of CragCard — it will be a separate component (US-017) rendered inside the forecast area
+---
+
+## 2026-04-04 - US-017
+- What was implemented: Created `src/components/DayDetail.tsx` — expandable day detail panel showing full weather breakdown for a selected day. Integrated into CragCard's forecast-area. Displays: date header, score verdict label, 5 time-of-day slots (Sunrise/Morning/Midday/Afternoon/Evening) with per-slot scores, 3x3 stats grid (wind, wind dir, shelter, temperature, UV, sunshine, rain, drying, rock temp), trend indicator (Improving/Getting Worse/Stable), and model comparison row (MeteoSwiss CH2 vs ECMWF IFS).
+- Files changed:
+  - `src/components/DayDetail.tsx` (created - expandable detail panel component)
+  - `src/components/CragCard.tsx` (updated - imports and renders DayDetail when day expanded)
+- **Learnings for future iterations:**
+  - DayDetail is rendered inside forecast-area (after forecast-scroll), matching original app.js structure
+  - `extractDay` helper is duplicated in DayDetail (also exists in CragCard and scoring.ts) — each extracts different fields
+  - Detail panel uses CSS animations defined in globals.css: `detailReveal`, `verdictPop`, `rowSlide`, `statsReveal`
+  - `getScoreLabel` (from constants.ts) replaces `scoreWord` from original app.js — same logic
+  - Expand/collapse is managed by UI store's `expandedDays[cragId]` — only one day per crag at a time
+  - Model comparison row only shows when both sB and sE scores are available
+---
+
+## 2026-04-04 - US-018
+- What was implemented: Created `src/components/UsualsTab.tsx` — renders saved crags from `useCragStore` as `CragCard` components with 3 sort modes (This Weekend, Best Today, Name). Fetches forecasts on mount via `useForecastStore.fetchAllForecasts`, starts 30-min auto-refresh. Sort uses `getTodayScore`/`getWeekendScore` from scoring.ts. Integrated into `src/app/page.tsx` replacing placeholder.
+- Files changed:
+  - `src/components/UsualsTab.tsx` (created - Usuals tab component with sort bar and crag grid)
+  - `src/app/page.tsx` (updated - imports and renders UsualsTab in usuals tab pane)
+- **Learnings for future iterations:**
+  - UsualsTab accepts `onAddCrag`, `onEditCrag`, `onRemoveCrag` callback props — parent/modal components (US-019, US-020) will wire these up
+  - Sort uses store-level `forecastCache` lookups: `getTodayScore(fc, crag)` and `getWeekendScore(fc, crag)` — returns -1 when no forecast available
+  - Auto-refresh cleanup is handled in useEffect return — `stopAutoRefresh()` on unmount
+  - The "Add Crag" button is conditionally rendered only when `onAddCrag` prop is provided (will be wired in US-019)
+---
+
+## 2026-04-04 - US-020
+- What was implemented: Created `src/components/ConfirmDialog.tsx` — reusable confirmation dialog using existing modal-overlay CSS. Wired into `src/app/page.tsx` with `removingCragId` state: clicking Remove on CragCard sets the ID, dialog shows crag name, Confirm calls `cragStore.removeCrag()`, Cancel dismisses. Escape key and overlay click also dismiss.
+- Files changed:
+  - `src/components/ConfirmDialog.tsx` (created - reusable confirmation dialog component)
+  - `src/app/page.tsx` (updated - added remove flow with ConfirmDialog, wired `onRemoveCrag` to UsualsTab)
+- **Learnings for future iterations:**
+  - The original app.js uses `window.confirm()` for remove — the Next.js port uses a styled modal dialog instead
+  - ConfirmDialog reuses the same `modal-overlay` / `modal` / `modal-btns` CSS classes as CragModal
+  - Danger/remove button uses `--red` CSS variable (`#E8725A`) for the background color
+  - `btn-primary` and `btn-secondary` are the correct CSS classes for modal action buttons (not `modal-cancel`/`modal-save`)
+  - Remove state is managed in `page.tsx` (like modal state) via `removingCragId` — ConfirmDialog is a controlled component
+---
+
+## 2026-04-04 - US-021
+- What was implemented: Created `src/components/ExploreTab.tsx` — Explore tab showing all Swiss crags organized by 8 regions (Ticino, Wallis/Valais, Berner Oberland, Zentralschweiz, Jura, Ostschweiz/Graubünden, Gotthard/Uri, Voralpen). Each region is expandable/collapsible with a score badge. Crags within regions show inline score summaries and expand to full forecast detail view. Sort controls (Weekend, Best Today, Name) sort regions by best score. Forecasts lazy-loaded on first tab open. Updated `src/app/page.tsx` to wire ExploreTab with `handleAddExploreToUsuals` handler.
+- Files changed:
+  - `src/components/ExploreTab.tsx` (created - ExploreTab + RegionCard + ExploreCragRow + ExploreCragDetail components)
+  - `src/app/page.tsx` (updated - imported ExploreTab, added handleAddExploreToUsuals, replaced placeholder)
+- **Learnings for future iterations:**
+  - Explore tab uses its own crag detail display (not CragCard) — crags show inline score summaries and expandable forecast rows matching original app.js structure
+  - Explore forecast cache uses `crag.id` as key (stable IDs generated from name), not `region:name` like original app.js
+  - Region score logic: weekend mode uses best weekend avg among crags, score mode uses best today score, name mode uses best overall score for the badge
+  - `handleAddExploreToUsuals` in page.tsx uses same pattern as handleSaveCrag for forecast fetching after add
+  - WeatherIcon prop is `weatherCode` not `code`
+  - Explore crags subscribe to usualsCrags via dynamic import to check "Already in Usuals" status
+  - Lazy loading: fetchExploreForecast called on first render of ExploreTab, not on app init
+---
+
+## 2026-04-04 - US-022
+- What was implemented: Added success feedback to the "Add to Usuals" button in Explore tab. Button shows "Added!" with green styling immediately after click (via `justAdded` local state), then transitions to "Already in Usuals" (disabled) once the crag store subscription updates. Added `.add-to-usuals-btn.added` CSS class with green color scheme.
+- Files changed:
+  - `src/components/ExploreTab.tsx` (updated ExploreCragDetail — added justAdded state, handleAdd handler, conditional button text)
+  - `src/styles/globals.css` (added `.add-to-usuals-btn.added` CSS rule)
+  - `tasks/prd.json` (US-022 passes: true)
+- **Learnings for future iterations:**
+  - The "Add to Usuals" wiring was already complete from US-021 — ExploreCragDetail had the button, page.tsx had `handleAddExploreToUsuals`, and `alreadyAdded` check was in place
+  - The only missing piece was explicit success feedback (AC #4) — solved with local `justAdded` state + CSS `.added` class
+  - ExploreTab subscribes to cragStore via dynamic import to avoid circular deps — `alreadyAdded` updates reactively when store changes
+---
+
+## 2026-04-04 - US-023
+- What was implemented: Created `src/components/Planner/PlannerForm.tsx` — Planner form with all filter controls matching original app.js/index.html. Location input (city name or lat/lon), 7-day calendar selector (weekends pre-selected), rock type toggle buttons (Granite/Gneiss/Limestone/Sandstone, all selected by default), terrain toggles (Slab/Vertical/Overhang, all selected), facing direction buttons (8 cardinal, S/SW/SE default selected), min score range slider (0-80, default 40), max results range slider (3-10, default 5), source dropdown (Both/Usuals only/Explore only). Wired into `src/app/page.tsx` replacing placeholder.
+- Files changed:
+  - `src/components/Planner/PlannerForm.tsx` (created - Planner form component with all filters)
+  - `src/app/page.tsx` (updated - imported and rendered PlannerForm in planner tab pane)
+  - `tasks/prd.json` (US-023 passes: true)
+- **Learnings for future iterations:**
+  - PlannerForm exports `PlannerFilters` interface for use by PlannerResults (US-024) — contains all filter state needed for search
+  - Form uses React state (not DOM queries) — all toggle buttons managed via state arrays with toggle helpers
+  - `buildDays()` generates 7 future days with ISO date strings, matching original `initPlannerDays()` behavior
+  - Day selector uses `planner-day-btn` + `sel` CSS classes matching original HTML structure exactly
+  - Rock/terrain/facing filters reuse `orient-grid` + `orient-btn` CSS classes from the modal form
+  - `onSearch` callback receives all filter state as a typed object — search logic will be in US-024
+  - `searching` prop disables the button during search (will be controlled by parent in US-024)
 ---
