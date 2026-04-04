@@ -42,6 +42,8 @@
 - Open-Meteo API: base `https://api.open-meteo.com/v1/forecast`, models `meteoswiss_icon_ch2` (5d) and `ecmwf_ifs` (7d), `past_days=2`, `timezone=auto`
 - Open-Meteo geocoding API: `https://geocoding-api.open-meteo.com/v1/search` — separate base URL from forecast API
 - API route response patterns: forecast returns `{ best, ecmwf }`, geocode returns `{ results: [{ lat, lon, name }] }`
+- Platform-aware defaults: `getPlatform()` can be called in Zustand store initializers (non-hook); use `usePlatform()` hook in components
+- UI store `currentSort` initialized via `getInitialSort()` — returns `'score'` (web) or `'weekend'` (iOS)
 
 ---
 
@@ -358,4 +360,14 @@
   - `WeatherIcon` is a default export (not named) — use `import WeatherIcon from ...`
   - Haversine formula: `R = 6371`, standard great-circle distance calculation matching original app.js exactly
   - Results expandable via local `expandedIdx` state (not UI store) — planner detail is independent of usuals/explore expansion
+---
+
+## 2026-04-04 - US-025
+- What was implemented: Platform feature flags for iOS vs web defaults. Web users get 'Best Today' sort on Usuals tab; iOS users get 'This Weekend'. iOS Explore tab shows a larger, filled "Save to Usuals" button.
+- Files changed: src/stores/uiStore.ts, src/components/ExploreTab.tsx, src/styles/globals.css
+- **Learnings for future iterations:**
+  - `getPlatform()` from `src/lib/platform.ts` can be called in store initializers (non-hook context) for platform-aware defaults
+  - `usePlatform()` hook must be used in components (client-side only)
+  - The `prominent` prop pattern threads through RegionCard → ExploreCragRow → ExploreCragDetail to style the Add to Usuals button differently per platform
+  - CSS `.add-to-usuals-btn.prominent` class provides the iOS-specific larger, filled button style
 ---
