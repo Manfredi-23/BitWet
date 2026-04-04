@@ -4,6 +4,7 @@ import { useUIStore } from '@/stores/uiStore';
 import ThemeInitializer from '@/components/ThemeInitializer';
 import ThemeToggle from '@/components/ThemeToggle';
 import Tabs from '@/components/Tabs';
+import UsualsTab from '@/components/UsualsTab';
 
 function Logo() {
   return (
@@ -44,7 +45,7 @@ export default function Home() {
       <Tabs />
       <main>
         <div className={`tab-pane${activeTab === 'usuals' ? ' active' : ''}`}>
-          {activeTab === 'usuals' && <p>Usuals tab content</p>}
+          {activeTab === 'usuals' && <UsualsTab />}
         </div>
         <div className={`tab-pane${activeTab === 'explore' ? ' active' : ''}`}>
           {activeTab === 'explore' && <p>Explore tab content</p>}
