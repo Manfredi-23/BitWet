@@ -12,6 +12,8 @@ import ExploreTab from '@/components/ExploreTab';
 import CragModal from '@/components/CragModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import PlannerForm from '@/components/Planner/PlannerForm';
+import PlannerResults from '@/components/Planner/PlannerResults';
+import type { PlannerFilters } from '@/components/Planner/PlannerForm';
 import type { Crag } from '@/lib/types';
 
 function Logo() {
@@ -38,6 +40,8 @@ export default function Home() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingCrag, setEditingCrag] = useState<Crag | null>(null);
   const [removingCragId, setRemovingCragId] = useState<string | null>(null);
+  const [plannerFilters, setPlannerFilters] = useState<PlannerFilters | null>(null);
+  const [plannerSearching, setPlannerSearching] = useState(false);
 
   const handleAddCrag = useCallback(() => {
     setEditingCrag(null);
@@ -162,7 +166,14 @@ export default function Home() {
         </div>
         <div className={`tab-pane${activeTab === 'planner' ? ' active' : ''}`}>
           {activeTab === 'planner' && (
-            <PlannerForm onSearch={() => {}} searching={false} />
+            <>
+              <PlannerForm onSearch={setPlannerFilters} searching={plannerSearching} />
+              <PlannerResults
+                filters={plannerFilters}
+                searching={plannerSearching}
+                setSearching={setPlannerSearching}
+              />
+            </>
           )}
         </div>
       </main>

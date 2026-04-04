@@ -427,7 +427,7 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 24,
-      "passes": false,
+      "passes": true,
       "notes": "Haversine distance calculation must match current implementation in app.js."
     },
     {

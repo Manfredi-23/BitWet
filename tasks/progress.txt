@@ -31,6 +31,7 @@
 - `WeatherIcon` component prop is `weatherCode` (not `code`) — accepts WMO weather code number
 - Explore tab in `src/components/ExploreTab.tsx`: uses its own inline crag display (not CragCard), with `ExploreCragRow`/`ExploreCragDetail` sub-components
 - Explore forecast cache keyed by `crag.id` (stable IDs from name), forecasts lazy-loaded on first tab visit via `fetchExploreForecast`
+- Planner: `PlannerForm` exports `PlannerFilters` type; `PlannerResults` runs search when filters change; batches of 6, cache-first, `sortKey = avgScore * 1000 - dist`
 - React 19 eslint rule `react-hooks/set-state-in-effect` forbids setState in useEffect — use key-based remount pattern instead
 - Modal state (open/close, editing crag) is managed in `page.tsx`, not inside CragModal — CragModal is a controlled component
 - CragCard component: `src/components/CragCard.tsx` — accepts `crag`, `forecast`, `index`, `onEdit`, `onRemove` props
@@ -341,4 +342,20 @@
   - Rock/terrain/facing filters reuse `orient-grid` + `orient-btn` CSS classes from the modal form
   - `onSearch` callback receives all filter state as a typed object — search logic will be in US-024
   - `searching` prop disables the button during search (will be controlled by parent in US-024)
+---
+
+## 2026-04-04 - US-024
+- What was implemented: Created `src/components/Planner/PlannerResults.tsx` — Planner search logic and results display. Fetches weather in batches of 6 crags (rate limit protection), checks existing forecast caches first. Scores each crag using `blendedScore` for selected days, calculates average score and Haversine distance. Results sorted by `avgScore * 1000 - distance` (score-first, distance as tiebreaker). Each result shows crag name/meta, average score pill, best day label, distance, and expandable mini forecast with per-day weather icons and scores. Updated `src/app/page.tsx` to wire PlannerForm + PlannerResults together with shared `plannerFilters` and `plannerSearching` state.
+- Files changed:
+  - `src/components/Planner/PlannerResults.tsx` (created - search logic + results display)
+  - `src/app/page.tsx` (updated - imported PlannerResults, added planner state, wired search flow)
+  - `tasks/prd.json` (US-024 passes: true)
+- **Learnings for future iterations:**
+  - `PlannerFilters` type is exported from PlannerForm.tsx — used by both PlannerResults and page.tsx
+  - Search trigger pattern: PlannerForm calls `onSearch(filters)` → page.tsx stores in `plannerFilters` state → PlannerResults detects change via object identity comparison and runs search
+  - Forecast cache check uses `useForecastStore.getState()` (not hook) since search runs in async callback
+  - `sortKey = avgScore * 1000 - (dist || 0)` — heavily favors score, distance only breaks ties
+  - `WeatherIcon` is a default export (not named) — use `import WeatherIcon from ...`
+  - Haversine formula: `R = 6371`, standard great-circle distance calculation matching original app.js exactly
+  - Results expandable via local `expandedIdx` state (not UI store) — planner detail is independent of usuals/explore expansion
 ---
