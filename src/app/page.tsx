@@ -1,10 +1,15 @@
 'use client';
 
+import { useState, useCallback } from 'react';
 import { useUIStore } from '@/stores/uiStore';
+import { useCragStore } from '@/stores/cragStore';
+import { useForecastStore } from '@/stores/forecastStore';
 import ThemeInitializer from '@/components/ThemeInitializer';
 import ThemeToggle from '@/components/ThemeToggle';
 import Tabs from '@/components/Tabs';
 import UsualsTab from '@/components/UsualsTab';
+import CragModal from '@/components/CragModal';
+import type { Crag } from '@/lib/types';
 
 function Logo() {
   return (
@@ -21,6 +26,61 @@ function Logo() {
 
 export default function Home() {
   const activeTab = useUIStore((s) => s.activeTab);
+  const addCrag = useCragStore((s) => s.addCrag);
+  const editCrag = useCragStore((s) => s.editCrag);
+  const crags = useCragStore((s) => s.crags);
+  const fetchForecast = useForecastStore((s) => s.fetchForecast);
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingCrag, setEditingCrag] = useState<Crag | null>(null);
+
+  const handleAddCrag = useCallback(() => {
+    setEditingCrag(null);
+    setModalOpen(true);
+  }, []);
+
+  const handleEditCrag = useCallback((id: string) => {
+    const crag = crags.find(c => c.id === id);
+    if (crag) {
+      setEditingCrag(crag);
+      setModalOpen(true);
+    }
+  }, [crags]);
+
+  const handleCloseModal = useCallback(() => {
+    setModalOpen(false);
+    setEditingCrag(null);
+  }, []);
+
+  const handleSaveCrag = useCallback((data: Omit<Crag, 'id'>) => {
+    if (editingCrag) {
+      editCrag(editingCrag.id, data);
+      // Re-fetch forecast if location changed
+      const old = editingCrag;
+      if (old.lat !== data.lat || old.lon !== data.lon) {
+        fetchForecast(data.lat, data.lon).then(fc => {
+          useForecastStore.setState(s => ({
+            forecastCache: { ...s.forecastCache, [editingCrag.id]: fc },
+          }));
+        });
+      }
+    } else {
+      addCrag(data);
+      // Fetch forecast for the newly added crag
+      fetchForecast(data.lat, data.lon).then(fc => {
+        // Get the latest crags to find the new one (it was just added)
+        const latest = useCragStore.getState().crags;
+        const newCrag = latest[latest.length - 1];
+        if (newCrag) {
+          useForecastStore.setState(s => ({
+            forecastCache: { ...s.forecastCache, [newCrag.id]: fc },
+          }));
+        }
+      });
+    }
+    setModalOpen(false);
+    setEditingCrag(null);
+  }, [editingCrag, addCrag, editCrag, fetchForecast]);
 
   return (
     <>
@@ -45,7 +105,12 @@ export default function Home() {
       <Tabs />
       <main>
         <div className={`tab-pane${activeTab === 'usuals' ? ' active' : ''}`}>
-          {activeTab === 'usuals' && <UsualsTab />}
+          {activeTab === 'usuals' && (
+            <UsualsTab
+              onAddCrag={handleAddCrag}
+              onEditCrag={handleEditCrag}
+            />
+          )}
         </div>
         <div className={`tab-pane${activeTab === 'explore' ? ' active' : ''}`}>
           {activeTab === 'explore' && <p>Explore tab content</p>}
@@ -54,6 +119,12 @@ export default function Home() {
           {activeTab === 'planner' && <p>Planner tab content</p>}
         </div>
       </main>
+      <CragModal
+        open={modalOpen}
+        editCrag={editingCrag}
+        onClose={handleCloseModal}
+        onSave={handleSaveCrag}
+      />
     </>
   );
 }
