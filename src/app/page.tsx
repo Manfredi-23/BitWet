@@ -8,6 +8,7 @@ import ThemeInitializer from '@/components/ThemeInitializer';
 import ThemeToggle from '@/components/ThemeToggle';
 import Tabs from '@/components/Tabs';
 import UsualsTab from '@/components/UsualsTab';
+import ExploreTab from '@/components/ExploreTab';
 import CragModal from '@/components/CragModal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import type { Crag } from '@/lib/types';
@@ -100,6 +101,30 @@ export default function Home() {
     setEditingCrag(null);
   }, [editingCrag, addCrag, editCrag, fetchForecast]);
 
+  const handleAddExploreToUsuals = useCallback((exploreCrag: Crag) => {
+    addCrag({
+      name: exploreCrag.name,
+      region: exploreCrag.region,
+      lat: exploreCrag.lat,
+      lon: exploreCrag.lon,
+      alt: exploreCrag.alt,
+      rock: exploreCrag.rock,
+      orientation: exploreCrag.orientation,
+      terrain: exploreCrag.terrain || 'vertical',
+      notes: '',
+    });
+    // Fetch forecast for the newly added crag
+    fetchForecast(exploreCrag.lat, exploreCrag.lon).then(fc => {
+      const latest = useCragStore.getState().crags;
+      const newCrag = latest[latest.length - 1];
+      if (newCrag) {
+        useForecastStore.setState(s => ({
+          forecastCache: { ...s.forecastCache, [newCrag.id]: fc },
+        }));
+      }
+    });
+  }, [addCrag, fetchForecast]);
+
   return (
     <>
       <ThemeInitializer />
@@ -132,7 +157,7 @@ export default function Home() {
           )}
         </div>
         <div className={`tab-pane${activeTab === 'explore' ? ' active' : ''}`}>
-          {activeTab === 'explore' && <p>Explore tab content</p>}
+          {activeTab === 'explore' && <ExploreTab onAddToUsuals={handleAddExploreToUsuals} />}
         </div>
         <div className={`tab-pane${activeTab === 'planner' ? ' active' : ''}`}>
           {activeTab === 'planner' && <p>Planner tab content</p>}
