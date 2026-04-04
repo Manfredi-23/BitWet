@@ -83,9 +83,18 @@ function ExploreCragDetail({ crag, forecast, onAddToUsuals, alreadyAdded }: {
   onAddToUsuals?: (crag: Crag) => void;
   alreadyAdded: boolean;
 }) {
+  const [justAdded, setJustAdded] = useState(false);
   const src = forecast.best || forecast.ecmwf;
   if (!src?.daily) return null;
   const todayStr = new Date().toISOString().slice(0, 10);
+
+  const handleAdd = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddToUsuals) {
+      onAddToUsuals(crag);
+      setJustAdded(true);
+    }
+  };
 
   return (
     <div className="explore-crag-detail open">
@@ -114,10 +123,12 @@ function ExploreCragDetail({ crag, forecast, onAddToUsuals, alreadyAdded }: {
         </div>
       </div>
       {onAddToUsuals && (
-        alreadyAdded ? (
-          <button className="add-to-usuals-btn" disabled style={{ opacity: 0.4, cursor: 'default' }}>Already in Usuals</button>
+        (alreadyAdded || justAdded) ? (
+          <button className={`add-to-usuals-btn added`} disabled>
+            {justAdded && !alreadyAdded ? 'Added!' : 'Already in Usuals'}
+          </button>
         ) : (
-          <button className="add-to-usuals-btn" onClick={(e) => { e.stopPropagation(); onAddToUsuals(crag); }}>+ Add to Usuals</button>
+          <button className="add-to-usuals-btn" onClick={handleAdd}>+ Add to Usuals</button>
         )
       )}
     </div>

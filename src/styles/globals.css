@@ -686,6 +686,13 @@ body {
   background: var(--coral);
   color: #fff;
 }
+.add-to-usuals-btn.added {
+  background: var(--green-dim, rgba(76, 175, 80, 0.15));
+  color: var(--green, #4caf50);
+  border-color: var(--green, #4caf50);
+  opacity: 0.8;
+  cursor: default;
+}
 
 /* ─── MODAL ─── */
 .modal-overlay {
