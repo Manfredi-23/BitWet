@@ -1,0 +1,48 @@
+## Codebase Patterns
+- Next.js 16.2.2 with React 19.2.4, App Router, TypeScript strict mode
+- Source code in `src/` directory, app routes in `src/app/`
+- ESLint configured via `eslint.config.mjs` (flat config); legacy JS files excluded from lint
+- Old vanilla JS app files at root: app.js, data.js, icons.js, index.html, style.css
+- Global CSS lives at `src/styles/globals.css`, imported in `src/app/layout.tsx`
+- Fonts loaded via CSS `@import` from Google Fonts (Ojuju + Space Mono)
+- Theme switching uses `[data-theme="dark"]` attribute with CSS variable overrides
+- Types in `src/lib/types.ts`, constants/helpers in `src/lib/constants.ts`
+- `getScoreLabel()`, `rockDryingFactor()`, `terrainRainFactor()`, `getSeasonProfile()` are in constants.ts
+
+---
+
+## 2026-04-04 - US-001
+- Scaffolded Next.js 16 project with TypeScript strict mode, React 19, and App Router
+- Files changed: .gitignore, package.json, tsconfig.json, next.config.ts, eslint.config.mjs, src/app/layout.tsx, src/app/page.tsx, src/app/globals.css
+- **Learnings for future iterations:**
+  - `create-next-app@latest` produces Next.js 16.2.2 with React 19.2.4 as of this date
+  - Old vanilla JS files (app.js, data.js, icons.js) are the source of truth for porting logic
+  - Legacy JS files excluded from ESLint via globalIgnores in eslint.config.mjs
+  - Build and typecheck both pass with zero errors
+---
+
+## 2026-04-04 - US-002
+- What was implemented: Ported all CSS from root `style.css` to `src/styles/globals.css` with Google Fonts @import. Updated `layout.tsx` to import from new path. Removed old placeholder `src/app/globals.css`.
+- Files changed:
+  - `src/styles/globals.css` (created - full CSS port)
+  - `src/app/layout.tsx` (updated import path)
+  - `src/app/globals.css` (deleted)
+- **Learnings for future iterations:**
+  - The original style.css is ~1091 lines covering all components (cards, modals, tabs, planner, explore, etc.)
+  - CSS uses `[data-theme="dark"]` selector pattern for dark mode, not a class
+  - All animations are CSS keyframes defined in the stylesheet
+  - `detailSlide` keyframe is referenced in `.region-crags.open` but not defined in style.css - may need to be added later
+---
+
+## 2026-04-04 - US-003
+- What was implemented: Created `src/lib/types.ts` with all data types (Crag, Forecast, ScoreResult, BlendedScoreResult, etc.) and `src/lib/constants.ts` with score label thresholds, rock drying factors, season profiles, time weights, orientation degrees, and score color helpers.
+- Files changed:
+  - `src/lib/types.ts` (created - all TypeScript types)
+  - `src/lib/constants.ts` (created - all constants and helper functions)
+- **Learnings for future iterations:**
+  - The scoring engine uses TIME_WEIGHTS for climbing window (9am-6pm) and TIME_SLOTS for display (5am-8pm)
+  - ScoreResult from computeScoreV2 returns: score, dryHours, dryStreak, windDeg, windShelter, effectiveRain, avgTemp, avgWind, avgGusts
+  - BlendedScoreResult extends ScoreResult with confidence level and per-model scores (sB, sE)
+  - Conglomerate/Nagelfluh has drying factor 1.6 (not in PRD but in source code)
+  - Wind shelter has 4 levels: Sheltered (0.15), Partial (0.35), Crosswind (0.6), Exposed (1.0)
+---

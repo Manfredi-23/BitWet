@@ -1,0 +1,501 @@
+{
+  "project": "BitWet",
+  "branchName": "ralph/nextjs-port",
+  "description": "Port BitWet climbing weather app to Next.js 16 (App Router), TypeScript, React 19, Zustand, and Capacitor (iOS). Pixel-identical design preservation required.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Next.js 16 project scaffolding",
+      "description": "As a developer, I need the Next.js 16 project initialized with TypeScript strict mode, React 19, and basic App Router layout so I can start building.",
+      "acceptanceCriteria": [
+        "Next.js 16 app created with App Router and TypeScript strict mode enabled in tsconfig.json",
+        "React 19 is the configured rendering engine in package.json",
+        "ESLint configured",
+        "Root layout.tsx exists with html/body structure",
+        "Root page.tsx exists with placeholder content",
+        "Project builds successfully with `next build`",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Port global CSS and theme variables",
+      "description": "As a developer, I need the existing style.css ported as a global stylesheet so the design is preserved exactly.",
+      "acceptanceCriteria": [
+        "All CSS variables from current style.css ported to src/styles/globals.css",
+        "All component styles ported (cards, modals, tabs, buttons, forms, etc.)",
+        "All media queries and breakpoints preserved",
+        "Dark mode and light mode CSS variable sets both present",
+        "globals.css imported in root layout.tsx",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Port style.css from project root exactly as-is. Do NOT introduce Tailwind or any component library."
+    },
+    {
+      "id": "US-003",
+      "title": "TypeScript types and constants",
+      "description": "As a developer, I need all data types and constants defined in TypeScript so the rest of the codebase has a solid type foundation.",
+      "acceptanceCriteria": [
+        "Crag type defined in src/lib/types.ts (id, name, region, lat, lon, alt, rock, orientation, terrain, notes)",
+        "RockType union type: 'Granite' | 'Gneiss' | 'Limestone' | 'Sandstone' | 'Conglomerate'",
+        "TerrainType union type: 'slab' | 'vertical' | 'overhang'",
+        "Orientation union type for cardinal directions",
+        "Forecast type defined (hourly data arrays, daily summaries, model source)",
+        "ScoreResult type defined (score, label, dryingHours, rockTemp, friction, windShelter)",
+        "Score label thresholds defined in src/lib/constants.ts (95+=Send It, 85-94=Atta Boy, etc. down to 0-14=Stay Home)",
+        "Rock drying factors defined (Granite 0.6, Gneiss 0.8, Limestone 1.2, Sandstone 2.0)",
+        "Season temperature ranges defined matching current implementation",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Reference current data.js and app.js for exact values."
+    },
+    {
+      "id": "US-004",
+      "title": "Port crags database to TypeScript",
+      "description": "As a developer, I need all 70+ Swiss crags and the 6 default usuals ported to a typed TypeScript module.",
+      "acceptanceCriteria": [
+        "src/data/crags.ts exports all explore crags from current data.js with correct types",
+        "Each crag has: name, region, lat, lon, alt, rock, orientation, terrain",
+        "Region groupings preserved in src/data/regions.ts (Ticino, Wallis/Valais, Berner Oberland, Zentralschweiz, Jura, Ostschweiz/Graubunden, Gotthard/Uri, Voralpen)",
+        "DEFAULT_CRAGS constant exports the 6 default usuals (Sobrio, Chironico Boulder, Salbit Westgrat, Wintersonne, Sonnenplattli, Plattenkreuz)",
+        "All coordinate and altitude values match current data.js exactly",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": "Copy all crag data from data.js verbatim — do not change any values."
+    },
+    {
+      "id": "US-005",
+      "title": "Port scoring engine core (computeScoreV2)",
+      "description": "As a developer, I need the main scoring function ported to TypeScript with identical behavior to the current vanilla JS.",
+      "acceptanceCriteria": [
+        "computeScoreV2(forecast, dayIndex, crag) implemented in src/lib/scoring.ts",
+        "Rain penalty logic identical (up to -25 prob + -35 amount, terrain-adjusted: overhang 70% reduction, slab full)",
+        "Temperature penalty logic identical (season-dependent ideal windows, +/-25 max penalty, +3 sweet spot bonus)",
+        "Wind penalty logic identical (up to -15, orientation and shelter factor modified)",
+        "Severe weather penalties identical (-20 thunderstorm, -12 snow)",
+        "Fog penalty identical (altitude-aware, -10 to -1)",
+        "Drying time penalty identical (-18 to -1, rock-type adjusted with correct factors)",
+        "Dry streak bonus identical (+5 for 5+, +3 for 3+, +1 for 2+ consecutive dry days)",
+        "Sunshine bonus/penalty identical (+2 for 8h+, -3 for <2h)",
+        "Score clamped to 0-100 range",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": "This is the heart of the app. Port line-by-line from current app.js computeScoreV2 function. Zero behavioral changes."
+    },
+    {
+      "id": "US-006",
+      "title": "Port scoring helpers (blended, today, weekend, detail metrics)",
+      "description": "As a developer, I need the blended score, today/weekend score, and detail metric calculations ported.",
+      "acceptanceCriteria": [
+        "blendedScore() averages CH2 and ECMWF scores when both available, falls back to single source",
+        "getTodayScore(cragId) finds today's date in forecast and returns blended score",
+        "Weekend score logic: combines Saturday + Sunday scores",
+        "Drying hours calculation ported (looks back from 9am through hourly precipitation)",
+        "Rock temperature calculation ported (air temp + solar gain by orientation - wind cooling)",
+        "Friction label calculation ported (cold=good, hot=sweaty based on rock temp)",
+        "Wind shelter calculation ported (Sheltered/Partial/Crosswind/Exposed based on wind dir vs orientation)",
+        "Wind direction circular mean calculation ported (9am-6pm window)",
+        "Trend indicator logic ported (Improving/Getting Worse/Stable)",
+        "getScoreLabel(score) returns correct label for 0-100 scale",
+        "All functions exported from src/lib/scoring.ts",
+        "Typecheck passes"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": "Reference app.js for exact implementations. These functions depend on computeScoreV2 from US-005."
+    },
+    {
+      "id": "US-007",
+      "title": "Platform detection utility and PlatformGate component",
+      "description": "As a developer, I need platform detection (iOS vs web) and a conditional rendering component for feature-flagging.",
+      "acceptanceCriteria": [
+        "src/lib/platform.ts exports getPlatform() returning 'ios' | 'web'",
+        "Detection uses Capacitor.isNativePlatform() when available, falls back to 'web'",
+        "src/hooks/usePlatform.ts exports usePlatform() hook wrapping getPlatform()",
+        "src/components/PlatformGate.tsx conditionally renders children based on platform prop",
+        "Typecheck passes"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": "Install @capacitor/core as dependency for platform detection."
+    },
+    {
+      "id": "US-008",
+      "title": "Storage adapter abstraction",
+      "description": "As a developer, I need a storage abstraction layer so localStorage is used now but Supabase can be swapped in later.",
+      "acceptanceCriteria": [
+        "StorageAdapter interface in src/lib/storage.ts with getCrags(), saveCrags(crags), getTheme(), setTheme(theme)",
+        "LocalStorageAdapter class implements the interface",
+        "Uses key 'bitWet_v1' for crags (backwards-compatible with existing data)",
+        "Uses key 'bitWet_theme' for theme preference",
+        "Handles missing/corrupted localStorage gracefully (returns defaults)",
+        "Exported singleton instance for use by stores",
+        "Typecheck passes"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Zustand crag store",
+      "description": "As a developer, I need a Zustand store for managing the user's saved crags with localStorage persistence.",
+      "acceptanceCriteria": [
+        "src/stores/cragStore.ts exports useCragStore",
+        "State: crags array, initialized from StorageAdapter.getCrags() or DEFAULT_CRAGS",
+        "Actions: addCrag, editCrag, removeCrag, loadCrags",
+        "Every mutation calls StorageAdapter.saveCrags() to persist immediately",
+        "New crags get auto-generated id (name + timestamp, matching current logic)",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Zustand forecast store",
+      "description": "As a developer, I need a Zustand store for managing weather forecast cache with auto-refresh.",
+      "acceptanceCriteria": [
+        "src/stores/forecastStore.ts exports useForecastStore",
+        "State: forecastCache (keyed by crag id), exploreFcCache (keyed by crag id), loading flags",
+        "Actions: fetchForecast(lat, lon), fetchAllForecasts(crags), fetchExploreForecast(crags)",
+        "Auto-refresh interval of 30 minutes for cached data",
+        "Fetches call the internal /api/forecast route handler (not Open-Meteo directly)",
+        "Typecheck passes"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Zustand UI store",
+      "description": "As a developer, I need a Zustand store for managing UI state (active tab, sort mode, expanded states).",
+      "acceptanceCriteria": [
+        "src/stores/uiStore.ts exports useUIStore",
+        "State: activeTab ('usuals' | 'explore' | 'planner'), currentSort, exploreSort, expandedDays, expandedExplore, theme",
+        "Actions: setActiveTab, setSort, toggleDayExpanded, toggleExploreExpanded, setTheme",
+        "Theme persisted via StorageAdapter (key 'bitWet_theme')",
+        "Respects OS color scheme preference on first load",
+        "Typecheck passes"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Weather API route handler",
+      "description": "As a developer, I need a Next.js Route Handler that proxies weather requests to Open-Meteo.",
+      "acceptanceCriteria": [
+        "GET /api/forecast?lat=X&lon=Y route handler in src/app/api/forecast/route.ts",
+        "Fetches from Open-Meteo ICON-CH2 (MeteoSwiss, 5-day, 2km resolution) as primary",
+        "Fetches from ECMWF IFS (7-day global) as secondary/backup",
+        "Returns both models in response: { best: CH2data, ecmwf: ECMWFdata }",
+        "Handles API failures gracefully (returns partial data if one model fails)",
+        "Response shape matches what the scoring engine expects (hourly + daily data)",
+        "Typecheck passes"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": "Reference current fetchForecast() in app.js for exact Open-Meteo API parameters and URL structure."
+    },
+    {
+      "id": "US-013",
+      "title": "Geocoding API route handler",
+      "description": "As a developer, I need a geocoding route handler for the Planner's location search.",
+      "acceptanceCriteria": [
+        "GET /api/geocode?q=X route handler in src/app/api/geocode/route.ts",
+        "Proxies to Open-Meteo geocoding API",
+        "Returns lat, lon, name for matched locations",
+        "Also supports direct coordinate parsing ('47.37, 8.55' format)",
+        "Typecheck passes"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Weather icons React components",
+      "description": "As a developer, I need all SVG weather icons from icons.js converted to React components.",
+      "acceptanceCriteria": [
+        "src/components/WeatherIcon.tsx exports a WeatherIcon component taking a weatherCode prop",
+        "All weather code SVG icons from current icons.js converted to inline JSX SVGs",
+        "Weather code to icon mapping preserved exactly",
+        "Weather code to text interpretation mapping exported (e.g., code 3 = 'Overcast')",
+        "Icons render at same sizes as current app",
+        "Typecheck passes"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": "Reference icons.js in project root for all SVG paths and weather code mappings."
+    },
+    {
+      "id": "US-015",
+      "title": "Tabs component and main page layout",
+      "description": "As a developer, I need the tab navigation component and main page shell matching the current app layout.",
+      "acceptanceCriteria": [
+        "src/components/Tabs.tsx renders 3 tabs: Usuals, Explore, Planner",
+        "Active tab highlighted matching current design",
+        "Tab content switches without page reload",
+        "Dark/light mode toggle button in header, same position as current app",
+        "Main page.tsx uses Tabs component as the shell",
+        "Design matches current index.html header and tab bar exactly",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "CragCard component (forecast overview)",
+      "description": "As a developer, I need the crag forecast card component showing the 5-day overview with scores.",
+      "acceptanceCriteria": [
+        "src/components/CragCard.tsx displays crag name, region, and 5-day forecast row",
+        "Each day shows: day name, weather icon, score number with color coding",
+        "Score color coding matches current design exactly (green for high, red for low, etc.)",
+        "Score labels shown on hover or alongside score",
+        "Edit (pencil) and Remove (X) icons on each card",
+        "Loading skeleton shown while forecast is being fetched",
+        "Card layout, spacing, fonts match current app pixel-for-pixel",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "DayDetail expandable component",
+      "description": "As a developer, I need the expandable day detail panel showing hourly conditions.",
+      "acceptanceCriteria": [
+        "src/components/DayDetail.tsx renders when a day is clicked/tapped on a CragCard",
+        "Shows 5 time slots: Sunrise, Morning, Midday, Afternoon, Evening",
+        "Each slot displays: weather icon, temperature, precipitation, wind info",
+        "Displays: drying hours, wind direction + shelter label, rock temperature, friction estimate",
+        "Shows trend indicator (Improving / Getting Worse / Stable)",
+        "Expand/collapse animation matches current behavior",
+        "Only one day expanded per crag at a time (managed via UI store)",
+        "Design matches current app exactly",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "Usuals tab with sort controls",
+      "description": "As a developer, I need the Usuals tab rendering saved crags with sorting options.",
+      "acceptanceCriteria": [
+        "Usuals tab displays all crags from useCragStore as CragCard components",
+        "Three sort buttons: 'This Weekend' (default), 'Best Today', 'Name'",
+        "Sort uses scores from useForecastStore (weekend=Sat+Sun combined, today=getTodayScore, name=alphabetical)",
+        "Default crags loaded on first visit when no localStorage data exists",
+        "'Add Crag' button visible at top of tab",
+        "Forecasts fetched automatically when tab loads via useForecastStore",
+        "Design matches current app exactly",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Add/Edit crag modal",
+      "description": "As a developer, I need the modal form for adding and editing crags.",
+      "acceptanceCriteria": [
+        "src/components/CragModal.tsx renders a modal overlay with form",
+        "Form fields: name, region, lat, lon, altitude, rock type (dropdown), orientation (multi-select checkboxes), terrain (radio), notes (textarea)",
+        "In edit mode: pre-populates all fields with existing crag data",
+        "In add mode: all fields empty, rock defaults to Limestone, terrain to vertical",
+        "Submit calls cragStore.addCrag() or cragStore.editCrag()",
+        "New crag triggers forecast fetch automatically",
+        "Modal design matches current app exactly (overlay, form layout, button styles)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Remove crag with confirmation",
+      "description": "As a developer, I need the remove crag flow with a confirmation dialog.",
+      "acceptanceCriteria": [
+        "Clicking X icon on CragCard shows confirmation dialog",
+        "Dialog shows crag name and asks 'Remove this crag?'",
+        "Confirm calls cragStore.removeCrag(id)",
+        "Cancel dismisses dialog, no changes",
+        "Dialog design matches current app",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Explore tab with region groupings",
+      "description": "As a developer, I need the Explore tab showing all Swiss crags organized by region.",
+      "acceptanceCriteria": [
+        "Explore tab displays 7 regions: Ticino, Wallis/Valais, Berner Oberland, Zentralschweiz, Jura, Ostschweiz/Graubunden, Gotthard/Uri, Voralpen",
+        "Each region is expandable/collapsible to show its crags",
+        "Region header shows best score summary among its crags",
+        "Each crag within a region renders as a CragCard (reusing same component)",
+        "Sort controls: Weekend, Best Today, Name (same as Usuals)",
+        "Forecasts lazy-loaded when Explore tab first opened (not on app init)",
+        "Design matches current app exactly",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Add to Usuals from Explore",
+      "description": "As a developer, I need the 'Add to Usuals' button on Explore crag details.",
+      "acceptanceCriteria": [
+        "'Add to Usuals' button shown on expanded crag details in Explore tab",
+        "Clicking adds crag to useCragStore (persists to localStorage)",
+        "Button disabled/hidden if crag already in Usuals",
+        "Success feedback shown (toast or button state change)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Planner tab - form and filters",
+      "description": "As a developer, I need the Planner form with location input, calendar selector, and filter controls.",
+      "acceptanceCriteria": [
+        "src/components/Planner/PlannerForm.tsx with all filter controls",
+        "Location input: accepts coordinates ('47.37, 8.55') or city name (calls /api/geocode)",
+        "Interactive calendar day selector for choosing trip dates",
+        "Filter dropdowns: rock type, terrain, orientation, source (Usuals/Explore/Both)",
+        "Min score threshold input",
+        "Max results input (default 5)",
+        "Search button triggers the planner search",
+        "Design matches current app exactly",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Planner tab - search logic and results",
+      "description": "As a developer, I need the Planner search logic and results display.",
+      "acceptanceCriteria": [
+        "src/components/Planner/PlannerResults.tsx displays search results",
+        "Search fetches weather in batches of 6 crags (rate limit protection)",
+        "Results sorted by highest average score across selected days",
+        "Haversine distance shown as tiebreaker (km from home location)",
+        "Each result shows crag name, average score, distance, per-day scores",
+        "Loading state while fetching weather data",
+        "Empty state when no crags meet criteria",
+        "Design matches current app exactly",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": "Haversine distance calculation must match current implementation in app.js."
+    },
+    {
+      "id": "US-025",
+      "title": "Platform feature flags (iOS vs web defaults)",
+      "description": "As a developer, I need platform-specific behavior applied: iOS defaults to Usuals, web defaults to Best Today sort.",
+      "acceptanceCriteria": [
+        "On iOS (Capacitor), app opens to Usuals tab with 'This Weekend' sort by default",
+        "On web, Usuals tab opens with 'Best Today' sort by default",
+        "iOS: 'Save' / 'Add to Usuals' button on Explore crags is more prominent",
+        "Feature flags use usePlatform() hook, not hardcoded",
+        "Both platforms have all three tabs fully functional",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "Dark/light mode toggle",
+      "description": "As a developer, I need the dark/light mode toggle working with OS preference detection and persistence.",
+      "acceptanceCriteria": [
+        "Toggle button in header matches current app position and design",
+        "Respects OS prefers-color-scheme on first load",
+        "Toggling switches all CSS variables between dark and light sets",
+        "Preference persisted via uiStore -> StorageAdapter (key 'bitWet_theme')",
+        "Transition animation matches current app",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Capacitor iOS setup and build",
+      "description": "As a developer, I need Capacitor configured so the app builds and runs on iOS.",
+      "acceptanceCriteria": [
+        "Capacitor installed and initialized with iOS platform",
+        "capacitor.config.ts configured with correct webDir pointing to Next.js static export",
+        "next.config.ts supports output: 'export' for static generation (used by iOS build)",
+        "npx cap sync ios runs without errors",
+        "iOS project generated in /ios directory",
+        "StatusBar and SafeArea handled (no content under notch)",
+        "App icon and splash screen configured with placeholders",
+        "Typecheck passes"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": "The iOS build uses static export. Route Handlers wont work in Capacitor - iOS app should call the deployed Vercel API URL or Open-Meteo directly."
+    },
+    {
+      "id": "US-028",
+      "title": "Vercel deployment configuration",
+      "description": "As a developer, I need the Next.js app ready for Vercel deployment.",
+      "acceptanceCriteria": [
+        "next build produces production build without errors or warnings",
+        "vercel.json configured if needed (or zero-config works)",
+        "Environment variables documented in .env.example if any are needed",
+        "No dev-only code leaking into production build",
+        "Typecheck passes"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
