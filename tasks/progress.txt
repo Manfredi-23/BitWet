@@ -8,6 +8,14 @@
 - Theme switching uses `[data-theme="dark"]` attribute with CSS variable overrides
 - Types in `src/lib/types.ts`, constants/helpers in `src/lib/constants.ts`
 - `getScoreLabel()`, `rockDryingFactor()`, `terrainRainFactor()`, `getSeasonProfile()` are in constants.ts
+- Crag data in `src/data/crags.ts` (DEFAULT_CRAGS, REGION_CRAGS, ALL_EXPLORE_CRAGS), regions in `src/data/regions.ts`
+- Explore crags default terrain to 'vertical' (source data.js doesn't specify terrain for explore crags)
+- Scoring engine in `src/lib/scoring.ts`: `computeScoreV2` + helpers (`calcDryingHours`, `calcDryStreak`, `getDayWindDirection`, `calcWindShelter`)
+- Scoring helpers in `src/lib/scoring.ts`: `blendedScore`, `getTodayScore`, `getWeekendScore`, `estimateRockTemp`, `frictionLabel`, `getTimeSlots`, `getDayTrend`, `wxLabel`, `dryingLabel`, `dryingClass`, `windDirLabel`, `confTag`
+- Scoring uses `fc.best || fc.ecmwf` pattern — CH2 preferred, ECMWF fallback
+- `blendedScore` runs computeScoreV2 separately for each model then averages; confidence based on score diff
+- `getTodayScore` and `getWeekendScore` accept (fc, crag) not (cragId) — store lookups happen at the caller level
+- `wxLabel` (weather code to text) is in scoring.ts, ported from icons.js
 
 ---
 
@@ -45,4 +53,41 @@
   - BlendedScoreResult extends ScoreResult with confidence level and per-model scores (sB, sE)
   - Conglomerate/Nagelfluh has drying factor 1.6 (not in PRD but in source code)
   - Wind shelter has 4 levels: Sheltered (0.15), Partial (0.35), Crosswind (0.6), Exposed (1.0)
+---
+
+## 2026-04-04 - US-004
+- What was implemented: Created `src/data/crags.ts` with DEFAULT_CRAGS (6 usuals) and REGION_CRAGS (80 explore crags across 8 regions), plus `src/data/regions.ts` with REGIONS constant and Region type. All values ported verbatim from data.js.
+- Files changed:
+  - `src/data/crags.ts` (created - all crag data with types)
+  - `src/data/regions.ts` (created - region list and type)
+- **Learnings for future iterations:**
+  - DEFAULT_CRAGS regions don't match REGIONS exactly (e.g., "Uri / Göschenen", "Schwyz", "Glarus / Näfels" vs "Gotthard/Uri", "Zentralschweiz")
+  - Explore crags in data.js don't have `terrain` field — defaulted to 'vertical' for all
+  - Explore crags in data.js don't have `id` — generated stable ids from crag name (lowercase, alphanumeric + hyphens)
+  - `ALL_EXPLORE_CRAGS` flat array export is available for convenience
+---
+
+## 2026-04-04 - US-005
+- What was implemented: Ported `computeScoreV2` and all helper functions (`calcDryingHours`, `calcDryStreak`, `getDayWindDirection`, `calcWindShelter`) to `src/lib/scoring.ts` with full TypeScript types.
+- Files changed:
+  - `src/lib/scoring.ts` (created - scoring engine with all helpers)
+- **Learnings for future iterations:**
+  - `computeScoreV2` depends on helper functions: `calcDryingHours`, `calcDryStreak`, `getDayWindDirection`, `calcWindShelter`
+  - The scoring engine uses `fc.best || fc.ecmwf` pattern — always preferring CH2 (MeteoSwiss) model
+  - `extractDay` is a local helper that extracts a single day's data from daily arrays
+  - All helper functions are exported for use by US-006 (blended score, detail metrics, etc.)
+  - Wind shelter calculation uses the exposed wind direction (faceDeg + 180) vs actual wind direction
+---
+
+## 2026-04-04 - US-006
+- What was implemented: Ported all scoring helper functions to `src/lib/scoring.ts`: `blendedScore`, `getTodayScore`, `getWeekendScore`, `estimateRockTemp`, `frictionLabel`, `getTimeSlots`, `getDayTrend`, `wxLabel`, `dryingLabel`, `dryingClass`, `windDirLabel`, `confTag`. Also re-exported `getScoreLabel` from scoring.ts for convenience.
+- Files changed:
+  - `src/lib/scoring.ts` (extended with all helper functions)
+- **Learnings for future iterations:**
+  - `getTodayScore` and `getWeekendScore` take `(fc, crag)` instead of `(cragId)` — decoupled from global state, store lookups happen at caller level
+  - `blendedScore` runs `computeScoreV2` separately per model then averages; confidence is based on score difference (<=10=high, <=25=medium, >25=low)
+  - `getTimeSlots` uses a simplified scoring formula (no hourly weighting) for per-slot scores
+  - `wxLabel` was originally in icons.js, now co-located with scoring in scoring.ts
+  - Wind direction variables in `getTimeSlots` were computed but unused in original app.js — removed to avoid lint warnings
+  - `estimateRockTemp` uses solar gain formula: 15 * sunFraction * orientFactor * rockFactor * altBoost
 ---
