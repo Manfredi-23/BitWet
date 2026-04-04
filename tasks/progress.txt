@@ -371,3 +371,13 @@
   - The `prominent` prop pattern threads through RegionCard → ExploreCragRow → ExploreCragDetail to style the Add to Usuals button differently per platform
   - CSS `.add-to-usuals-btn.prominent` class provides the iOS-specific larger, filled button style
 ---
+
+## 2026-04-04 - US-026
+- What was implemented: Dark/light mode toggle verification and OS preference change listener. The toggle button, CSS variables, persistence, and transitions were already implemented in prior stories. Added real-time OS preference change listener to ThemeInitializer (matching original app.js behavior) — updates theme when OS switches dark/light mode, but only if user hasn't manually set a preference.
+- Files changed:
+  - `src/components/ThemeInitializer.tsx` (updated - added OS prefers-color-scheme change listener)
+- **Learnings for future iterations:**
+  - Theme toggle was already largely complete from US-011 (uiStore), US-015 (ThemeToggle component), and US-002 (CSS variables)
+  - The original app.js `initTheme()` has a `matchMedia('prefers-color-scheme').addEventListener('change')` — always check if live OS preference listening is needed
+  - `storage.getTheme()` returning null means no manual preference was set — this is the guard for OS preference auto-follow
+---
